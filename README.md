@@ -14,6 +14,12 @@ App para avaliação postural por fotos no iPad. Funciona no Safari e pode ser a
 - Laudo para imprimir ou salvar em PDF: capa, uma página por vista com foto marcada, tabela e miniaturas ampliadas, comparação com avaliação anterior, conduta e limites.
 - Cópia de segurança (salvar e restaurar um arquivo).
 
+## Pontos e estilo do APECS
+
+Os pontos seguem os mesmos marcos do relatório APECS (frente, costas e laterais). Além dos pontos pares, há pontos opcionais da linha média, como no APECS: centro do rosto, incisura jugular e processo xifoide (frente); C7 e fenda glútea (costas). Eles desenham as linhas de ligação e entram nas medidas complementares A12 e A13 (frente) e B11 e B12 (costas), que não têm faixa de referência.
+
+No laudo, a foto marcada usa o mesmo desenho do APECS: rótulos azuis à esquerda, caixas de valor à direita, linhas guia, segmentos laranja, linhas brancas ligando os pontos, pernas em azul e linha de alinhamento em vermelho. As frases de conclusão do APECS (por exemplo, "genu varum") não são copiadas.
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:

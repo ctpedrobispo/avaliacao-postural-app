@@ -7,7 +7,7 @@
   const sym = (x) => 200 - x;
 
   const ANT = {
-    cabD: [78, 46], cabE: [122, 46], nar: [100, 47],
+    cabD: [78, 46], cabE: [122, 46], nar: [100, 38], est: [100, 82], xif: [100, 152],
     acrD: [L, 92], acrE: [R, 92], axiD: [68, 114], axiE: [132, 114],
     cxtD: [77, 172], cxtE: [123, 172], troD: [75, 194], troE: [125, 194],
     asiD: [79, 226], asiE: [121, 226], joeD: [83, 312], joeE: [117, 312],
@@ -18,7 +18,7 @@
     orD: [122, 44], orE: [78, 44], ombD: [R, 92], ombE: [L, 92], axiD: [132, 114], axiE: [68, 114],
     cuD: [125, 194], cuE: [75, 194], psiD: [114, 220], psiE: [86, 220],
     popD: [117, 314], popE: [83, 314], calD: [115, 434], calE: [85, 434],
-    tnD1: [116, 384], tnD2: [115, 420], tnE1: [84, 384], tnE2: [85, 420],
+    tnD1: [116, 384], tnD2: [115, 420], tnE1: [84, 384], tnE2: [85, 420], c7p: [100, 78], fen: [100, 250],
   };
   // Lateral desenhada com o aluno olhando para a DIREITA; a figura é espelhada quando olha para a esquerda.
   const LAT = {

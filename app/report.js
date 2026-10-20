@@ -136,7 +136,7 @@
     const c = document.createElement('canvas');
     c.width = img.naturalWidth;
     c.height = img.naturalHeight;
-    h.drawView(c.getContext('2d'), img, key, v, { s: 1, x: 0, y: 0 }, img.naturalWidth / 650, { grid: true });
+    h.drawView(c.getContext('2d'), img, key, v, { s: 1, x: 0, y: 0 }, img.naturalWidth / 650, { grid: true, style: 'apecs' });
     return c.toDataURL('image/jpeg', 0.85);
   }
 

@@ -99,13 +99,14 @@ test('vista anterior: pontos medidos sobre o relatório APECS batem com os valor
   assert.ok(r.A10.signed > 0 && r.A11.signed > 0);
 });
 
-test('alinhamento do tronco e cabeça sobre os ombros (complementares)', () => {
-  const pts = { acrD: { x: 40, y: 100 }, acrE: { x: 160, y: 100 }, asiD: { x: 60, y: 300 }, asiE: { x: 140, y: 300 }, nar: { x: 100, y: 40 } };
+test('alinhamento do tronco e cabeça sobre o tronco (complementares)', () => {
+  const pts = { est: { x: 100, y: 100 }, nar: { x: 100, y: 40 }, asiD: { x: 60, y: 300 }, asiE: { x: 140, y: 300 } };
   const res = A.computeView('ant', pts);
-  const a12 = res.find((r) => r.code === 'A12');
-  const a13 = res.find((r) => r.code === 'A13');
-  assert.equal(a12.value, 0);
-  assert.equal(a13.value, 0);
-  const pts2 = { ombD: { x: 160, y: 100 }, ombE: { x: 40, y: 100 }, psiD: { x: 130, y: 300 }, psiE: { x: 70, y: 300 } };
-  assert.equal(A.computeView('post', pts2).find((r) => r.code === 'B11').value, 0);
+  assert.equal(res.find((r) => r.code === 'A12').value, 0);
+  assert.equal(res.find((r) => r.code === 'A13').value, 0);
+  const inclinado = A.computeView('ant', { ...pts, est: { x: 110, y: 100 } }).find((r) => r.code === 'A12');
+  assert.ok(inclinado.value > 2 && inclinado.value < 6);
+  const post = A.computeView('post', { c7p: { x: 100, y: 80 }, fen: { x: 100, y: 300 }, orD: { x: 110, y: 40 }, orE: { x: 90, y: 40 } });
+  assert.equal(post.find((r) => r.code === 'B11').value, 0);
+  assert.equal(post.find((r) => r.code === 'B12').value, 0);
 });

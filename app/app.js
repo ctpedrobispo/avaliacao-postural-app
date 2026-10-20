@@ -494,12 +494,26 @@
       c.beginPath(); c.moveTo(v.plumbX, 0); c.lineTo(v.plumbX, ih); c.stroke();
       c.setLineDash([]);
     }
+    if (!opt.only) {
+      const seg = (ids, color, w) => {
+        c.strokeStyle = color; c.lineWidth = w * u; c.lineCap = 'round';
+        for (let i = 0; i + 1 < ids.length; i++) {
+          const a = v.pts[ids[i]], b = v.pts[ids[i + 1]];
+          if (a && b) { c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); }
+        }
+        c.lineCap = 'butt';
+      };
+      (def.skeleton || []).forEach((ids) => seg(ids, 'rgba(255,255,255,0.7)', 2.5));
+      (def.legs || []).forEach((ids) => seg(ids, 'rgba(31,120,209,0.85)', 2.5));
+    }
     const results = Angles.computeView(key, v.pts, v.facing);
     def.measures.forEach((m) => {
       if (opt.only && m.code !== opt.only) return;
+      if (opt.style === 'apecs' && (m.type === 'knee' || /complementar/.test(m.label) && m.type === 'align')) return;
+      const redLine = opt.style === 'apecs' && (m.type === 'align' || m.type === 'vertical');
       Angles.geometry(m, v.pts).forEach((line) => {
-        c.strokeStyle = '#f39c12';
-        c.lineWidth = 3.5 * u;
+        c.strokeStyle = redLine ? '#e53935' : '#f39c12';
+        c.lineWidth = (redLine ? 2.5 : 3.5) * u;
         c.beginPath();
         line.forEach((p, i) => (i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)));
         c.stroke();
@@ -514,7 +528,7 @@
         }
       });
       const r = results.find((x) => x.code === m.code);
-      if (r && !opt.noLabels) {
+      if (r && !opt.noLabels && opt.style !== 'apecs') {
         const line = Angles.geometry(m, v.pts)[0];
         const at = line[line.length > 2 ? 1 : 0];
         tagLabel(c, `${m.code} ${Angles.fmt(r.value)}°`, at.x + 10 * u, at.y - 10 * u, u);
@@ -529,9 +543,57 @@
       f.pts.forEach((p) => dot(c, p, u, '#9b59ff', false));
       if (f.pts.length === 3 && !opt.noLabels) tagLabel(c, `${f.label}: ${Angles.fmt(Angles.angleAt(f.pts[0], f.pts[1], f.pts[2]))}°`, f.pts[1].x + 10 * u, f.pts[1].y + 22 * u, u);
     });
+    if (opt.style === 'apecs' && !opt.noLabels && !opt.only) drawCallouts(c, u, iw, ih, key, v, results);
     const onlyIds = opt.only ? new Set(def.measures.find((m) => m.code === opt.only).pts.flat()) : null;
     Object.entries(v.pts).forEach(([id, p]) => { if (!onlyIds || onlyIds.has(id)) dot(c, p, u, '#1f78d1', id === opt.sel); });
     c.restore();
+  }
+
+  // Rótulos no estilo do APECS: nome à esquerda, valor à direita, linhas guia horizontais até os pontos.
+  const CALLOUTS = {
+    ant: [['A2', 'Cabeça'], ['A3', 'Acrôm.'], ['A4', 'Axil.'], ['A5', 'Caixa T.'], ['A6', 'Tronco'], ['A7', 'ASIS'], ['A8', 'Joelhos', 'A9', 'joeD', 'joeE'], ['A10', 'Pés', 'A11', 'torD', 'torE']],
+    post: [['B2', 'Orelhas'], ['B3', 'Ombros'], ['B4', 'Axilas'], ['B5', 'Topo da curva'], ['B6', 'PSIS'], ['B7', 'Joelhos'], ['B8', 'Pés']],
+    lat: [['2', 'Cabeça', null, 'c7'], ['3', 'Ombros', null, 'acr'], ['4', 'Pélvis', null, 'psi'], ['5', 'Fêmur', null, 'joe'], ['6', 'Tíbia', null, 'mal'], ['7', 'Pé', null, 'ded']],
+  };
+  function drawCallouts(c, u, iw, ih, key, v, results) {
+    const def = Angles.VIEWS[key];
+    const lat = key === 'latD' || key === 'latE';
+    const list = CALLOUTS[lat ? 'lat' : key] || [];
+    const BLUE = '#1f78d1', RED = '#e53935', pad = 6 * u, bh = 22 * u, mx = 8 * u;
+    c.font = `600 ${14 * u}px -apple-system, sans-serif`;
+    c.textBaseline = 'alphabetic';
+    const box = (text, x, y, color, rightAlign) => {
+      const w = c.measureText(text).width + 2 * pad;
+      const bx = rightAlign ? x - w : x;
+      c.fillStyle = '#fff'; c.fillRect(bx, y - bh / 2, w, bh);
+      c.strokeStyle = color; c.lineWidth = 2 * u; c.strokeRect(bx, y - bh / 2, w, bh);
+      c.fillStyle = '#111'; c.fillText(text, bx + pad, y + 5 * u);
+      return { l: bx, r: bx + w };
+    };
+    const line = (x1, y1, x2, y2) => { c.strokeStyle = BLUE; c.lineWidth = 1.5 * u; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); };
+    const val = (code) => { const r = results.find((x) => x.code === code); return r ? Angles.fmt(r.value) + '°' : null; };
+    let lastL = -1e9, lastR = -1e9;
+    list.forEach(([code, name, code2, a1, a2]) => {
+      const full = lat ? def.codePrefix + code : code;
+      const m = def.measures.find((x) => x.code === full);
+      if (!m || !val(full)) return;
+      let ids, vals;
+      if (code2) { ids = [a1, a2]; vals = [val(full), val(code2)]; }
+      else if (a1) { ids = [a1, a1]; vals = [val(full), val(full)]; }
+      else { ids = m.pts; vals = [val(full), val(full)]; }
+      let pts = ids.map((id) => v.pts[id]);
+      if (pts.some((q) => !q) || (code2 && !vals[1])) return;
+      if (pts[0].x > pts[1].x) { pts = pts.reverse(); vals = vals.reverse(); }
+      const paired = !!code2;
+      const yl = Math.max(pts[0].y, lastL + bh + 3 * u), yr = Math.max(pts[1].y, lastR + bh + 3 * u);
+      lastL = yl; lastR = yr;
+      const left = box(paired ? name + ' ' + vals[0] : name, mx, yl, BLUE, false);
+      line(left.r, yl, pts[0].x, pts[0].y);
+      const right = box(paired ? vals[1] : vals[0], iw - mx, yr, BLUE, true);
+      line(pts[1].x, pts[1].y, right.l, yr);
+    });
+    const al = val(def.codePrefix + '1');
+    if (al) box('Alinhamento ' + al, mx, ih - 18 * u, RED, false);
   }
 
   function dot(c, p, u, color, sel) {

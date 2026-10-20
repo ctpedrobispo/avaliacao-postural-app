@@ -87,7 +87,6 @@
       points: [
         ['cabD', 'Cabeça D', 'ângulo da mandíbula ou lóbulo da orelha, lado direito do aluno'],
         ['cabE', 'Cabeça E', 'mesmo ponto, lado esquerdo do aluno'],
-        ['nar', 'Ponta do nariz', 'opcional: usado no alinhamento da cabeça sobre os ombros'],
         ['acrD', 'Acrômio D', ''],
         ['acrE', 'Acrômio E', ''],
         ['axiD', 'Axila D', 'prega axilar anterior'],
@@ -104,6 +103,9 @@
         ['torE', 'Tornozelo E', ''],
         ['dedD', '2º dedo D', 'ponta do 2º dedo'],
         ['dedE', '2º dedo E', ''],
+        ['nar', 'Centro do rosto (nariz)', 'opcional: ponta do nariz, na linha média'],
+        ['est', 'Incisura jugular', 'opcional: centro da fúrcula esternal, entre as clavículas'],
+        ['xif', 'Processo xifoide', 'opcional: ponta inferior do esterno, na linha média'],
       ],
       measures: [
         { code: 'A1', label: 'Alinhamento corporal', type: 'align', pts: [['cabD', 'cabE'], ['torD', 'torE']] },
@@ -117,8 +119,8 @@
         { code: 'A9', label: 'Ângulo do joelho esquerdo', type: 'knee', pts: ['asiE', 'joeE', 'torE'], side: 'E' },
         { code: 'A10', label: 'Rotação do pé direito', type: 'foot', pts: ['torD', 'dedD'], side: 'D' },
         { code: 'A11', label: 'Rotação do pé esquerdo', type: 'foot', pts: ['torE', 'dedE'], side: 'E' },
-        { code: 'A12', label: 'Alinhamento do tronco (complementar)', type: 'align', pts: [['acrD', 'acrE'], ['asiD', 'asiE']] },
-        { code: 'A13', label: 'Cabeça sobre os ombros (complementar)', type: 'align', pts: ['nar', ['acrD', 'acrE']] },
+        { code: 'A12', label: 'Alinhamento do tronco (complementar)', type: 'align', pts: ['est', ['asiD', 'asiE']] },
+        { code: 'A13', label: 'Cabeça sobre o tronco (complementar)', type: 'align', pts: ['nar', 'est'] },
       ],
     },
     post: {
@@ -144,6 +146,8 @@
         ['tnD2', 'Tendão D (inserção)', 'opcional: inserção do tendão no calcâneo'],
         ['tnE1', 'Tendão E (meio)', 'opcional'],
         ['tnE2', 'Tendão E (inserção)', 'opcional'],
+        ['c7p', 'C7 (linha média)', 'opcional: processo espinhoso de C7, na linha média'],
+        ['fen', 'Fenda glútea', 'opcional: início da fenda interglútea, na linha média'],
       ],
       measures: [
         { code: 'B1', label: 'Alinhamento corporal', type: 'align', pts: [['orD', 'orE'], ['calD', 'calE']] },
@@ -156,8 +160,8 @@
         { code: 'B8', label: 'Pés', type: 'tilt', pts: ['calD', 'calE'] },
         { code: 'B9', label: 'Retropé direito (complementar)', type: 'rearfoot', pts: ['tnD1', 'tnD2', 'calD'], side: 'D' },
         { code: 'B10', label: 'Retropé esquerdo (complementar)', type: 'rearfoot', pts: ['tnE1', 'tnE2', 'calE'], side: 'E' },
-        { code: 'B11', label: 'Alinhamento do tronco (complementar)', type: 'align', pts: [['ombD', 'ombE'], ['psiD', 'psiE']] },
-        { code: 'B12', label: 'Cabeça sobre os ombros (complementar)', type: 'align', pts: [['orD', 'orE'], ['ombD', 'ombE']] },
+        { code: 'B11', label: 'Alinhamento do tronco (complementar)', type: 'align', pts: ['c7p', 'fen'] },
+        { code: 'B12', label: 'Cabeça sobre C7 (complementar)', type: 'align', pts: [['orD', 'orE'], 'c7p'] },
       ],
     },
   };
@@ -191,6 +195,16 @@
   // Na lateral direita a câmera vê o lado direito: o aluno olha para a direita da foto.
   VIEWS.latD = lateral('Lateral direita', 'C', 'dir');
   VIEWS.latE = lateral('Lateral esquerda', 'D', 'esq');
+
+  // Linhas de ligação desenhadas na foto (estilo APECS): brancas para o tronco, azuis para as pernas.
+  VIEWS.ant.skeleton = [['cabD', 'est', 'cabE'], ['acrD', 'axiD', 'troD', 'asiD'], ['acrE', 'axiE', 'troE', 'asiE'], ['xif', 'cxtD', 'troD'], ['xif', 'cxtE', 'troE'], ['est', 'xif']];
+  VIEWS.ant.legs = [['asiD', 'joeD', 'torD', 'dedD'], ['asiE', 'joeE', 'torE', 'dedE']];
+  VIEWS.post.skeleton = [['orD', 'c7p', 'orE'], ['ombD', 'axiD', 'cuD', 'psiD'], ['ombE', 'axiE', 'cuE', 'psiE'], ['psiD', 'fen', 'psiE'], ['c7p', 'fen']];
+  VIEWS.post.legs = [['psiD', 'popD', 'calD'], ['psiE', 'popE', 'calE']];
+  ['latD', 'latE'].forEach((k) => {
+    VIEWS[k].skeleton = [['tra', 'c7', 'acr'], ['psi', 'tro', 'asi']];
+    VIEWS[k].legs = [['tro', 'joe', 'mal', 'ded']];
+  });
 
   const METHOD = {
     tilt: 'Segmento entre os dois marcos em relação à horizontal da foto.',
