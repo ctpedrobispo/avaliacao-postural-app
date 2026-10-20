@@ -71,7 +71,16 @@ th { color: var(--muted); font-weight: 600; }
   header.top, main { display: none !important; }
   #report { display: block !important; }
 }
+/* Marca */
+.brand { display: flex; align-items: center; gap: 14px; justify-content: center; flex-wrap: wrap; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--line); }
+.brand img { height: 56px; width: auto; display: block; }
+.brand .sep { width: 1px; align-self: stretch; background: #d9e0e8; }
 /* Laudo */
+.rp .brandbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.rp .brandbar img { height: 20mm; width: auto; }
+.rp .cred { border: 1px solid #bbb; padding: 6px 10px; font-size: 9.5pt; page-break-inside: avoid; }
+.rp .cred .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.rp .cred ul { margin: 2px 0 4px 16px; padding: 0; }
 .rp { color: #000; background: #fff; font-size: 11pt; }
 .rp h1 { font-size: 18pt; margin: 0; color: #1f5f99; }
 .rp h2 { font-size: 13pt; background: #e7eef6; padding: 4px 8px; margin: 14px 0 8px; color: #13406b; }
@@ -99,6 +108,7 @@ th { color: var(--muted); font-weight: 600; }
   <button id="nav-refs">Referências</button>
   <button id="nav-backup">Cópia de segurança</button>
 </header>
+<div class="brand"><img src="logo-ct.png" alt="CT Pedro Bispo"><span class="sep"></span><img src="logo-correplus.webp" alt="Corre+ Assessoria para Corredores"></div>
 <main id="main"></main>
 <div id="report"></div>
 <script src="angles.js"></script>

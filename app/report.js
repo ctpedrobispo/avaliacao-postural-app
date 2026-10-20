@@ -14,6 +14,27 @@
     'Achados posturais orientam o treino apenas quando combinados com movimento, sintomas, tarefa e objetivo do aluno.',
   ];
 
+  const PEDRO = {
+    nome: 'Pedro de Souza Bispo',
+    titulo: 'Profissional de Educação Física — Treinador',
+    cref: 'CREF 017067-G/PE (CREF12/PE)',
+    formacao: 'Graduação em Educação Física',
+    quals: ['Treinamento Funcional', 'Cross Training e Treinamento Multimodal', 'Treinamento para Grupos Especiais — do treinamento à reabilitação', 'Treinamento de Corredores (certificação profissional)'],
+    areas: ['Treinamento de força e hipertrofia', 'Preparação física para corredores', 'Treinamento híbrido (força e corrida)', 'Avaliação física, postural e do gesto esportivo', 'Avaliação por bioimpedância', 'Avaliação e prescrição para idosos', 'Gestão de academias e centros de treinamento'],
+  };
+
+  function credenciais(perfil, esc) {
+    const mesmo = !perfil.nome || perfil.nome.trim() === PEDRO.nome;
+    const li = (l) => l.map((x) => '<li>' + esc(x) + '</li>').join('');
+    return '<h2>Credenciais profissionais</h2><div class="cred">' +
+      '<p><b>' + esc(PEDRO.nome) + '</b> — ' + esc(PEDRO.titulo) + ' · ' + esc(PEDRO.cref) + '<br>' +
+      '<span class="note">' + (mesmo ? 'Responsável pelo método, pelo app e por esta avaliação.' : 'Responsável pelo método e pelo app.') + '</span></p>' +
+      '<div class="cols"><div><b>Formação:</b> ' + esc(PEDRO.formacao) + '<br><b>Qualificações:</b><ul>' + li(PEDRO.quals) + '</ul></div>' +
+      '<div><b>Áreas de atuação:</b><ul>' + li(PEDRO.areas) + '</ul></div></div>' +
+      (mesmo ? '' : '<p><b>Avaliador desta avaliação:</b> ' + esc(perfil.nome) + (perfil.cref ? ' · ' + esc(perfil.cref) : '') + '</p>') +
+      '<p class="note">CT Pedro Bispo | Corre+ Assessoria para Corredores</p></div>';
+  }
+
   const NO_ERROR_NOTE = 'Houve diferença numérica entre as avaliações, mas a ausência de informação sobre erro de medida impede afirmar com segurança que se trata de mudança real.';
 
   async function build({ a, s, prev, perfil, helpers: h }) {
@@ -21,7 +42,8 @@
     const groups = h.allResults(a);
     const imc = s.altura && s.peso ? (+s.peso / Math.pow(+s.altura / 100, 2)).toFixed(1) : '';
     const idade = s.nascimento ? Math.floor((new Date(a.data) - new Date(s.nascimento)) / 3.15576e10) : '';
-    const head = `<div class="head"><div><h1>Avaliação Postural por Fotogrametria</h1><div class="note">Relatório postural — vistas anterior, posterior e laterais</div></div>
+    const head = `<div class="brandbar"><img src="logo-ct.png" alt="CT Pedro Bispo"><img src="logo-correplus.webp" alt="Corre+ Assessoria para Corredores"></div>
+      <div class="head"><div><h1>Avaliação Postural por Fotogrametria</h1><div class="note">Relatório postural — vistas anterior, posterior e laterais</div></div>
       <div class="note" style="text-align:right">Data: <b>${fmtDate(a.data)}</b><br>Avaliador: ${esc(a.avaliador || perfil.nome)}<br>${esc(perfil.cref || '')}</div></div>`;
 
     let html = `<div class="page">${head}
@@ -69,7 +91,7 @@
       ${a.linguagemSimples ? `<h2>Em linguagem simples</h2><p>${esc(a.linguagemSimples)}</p>` : ''}
       <h2>Limites desta avaliação</h2><ul class="note">${LIMITACOES.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
       <p class="note">${s.consent && s.consent.ok ? 'Consentimento de uso de imagem registrado em ' + fmtDate(s.consent.data) + '.' : 'Consentimento de uso de imagem não registrado.'}</p>
-      <p class="note">${esc(perfil.nome)} · ${esc(perfil.cref || '')}</p>
+      ${credenciais(perfil, esc)}
     </div>`;
     return html;
   }
