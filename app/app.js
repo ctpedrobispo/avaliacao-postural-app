@@ -177,7 +177,7 @@
   }
 
   // ---------- Editor ----------
-  const ED = { active: false, a: null, s: null, tab: 'ant', img: null, sel: null, tool: 'mark', tf: { s: 1, x: 0, y: 0 }, grid: true, plumb: true, ptrs: new Map(), drag: null, pinch: null, freeTmp: null, loupe: null };
+  const ED = { active: false, a: null, s: null, tab: 'ant', img: null, sel: null, tool: 'mark', tf: { s: 1, x: 0, y: 0 }, grid: true, plumb: true, guide: true, ptrs: new Map(), drag: null, pinch: null, freeTmp: null, loupe: null };
   let saveTimer;
   const saveSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => DB.put('assessments', ED.a), 400); };
 
@@ -217,9 +217,9 @@
             <label class="btn" style="margin:0;color:var(--ink)">${v.photo ? 'Trocar foto' : 'Escolher ou tirar foto'}<input type="file" accept="image/*" id="file" hidden></label>
             <button data-tool="mark">Marcar</button><button data-tool="pan">Mover</button><button data-tool="plumb">Fio de prumo</button><button data-tool="free">Ângulo livre</button>
             <button id="zin">+</button><button id="zout">−</button><button id="zfit">Ajustar</button>
-            <button id="tgrid" class="${ED.grid ? 'on' : ''}">Grade</button>
+            <button id="tgrid" class="${ED.grid ? 'on' : ''}">Grade</button><button id="tguide" class="${ED.guide ? 'on' : ''}">Guia</button>
           </div>
-          <div class="stage" id="stage">${v.photo ? '<canvas id="cv"></canvas>' : `<div class="empty">Escolha a foto da vista ${esc(def.label.toLowerCase())}.<br><br>Câmera fixa, perpendicular ao aluno, corpo inteiro na foto, pés na base marcada.</div>`}</div>
+          <div class="stagewrap"><div class="guide" id="guide" hidden></div><div class="stage" id="stage">${v.photo ? '<canvas id="cv"></canvas>' : `<div class="empty">Escolha a foto da vista ${esc(def.label.toLowerCase())}.<br><br>Câmera fixa, perpendicular ao aluno, corpo inteiro na foto, pés na base marcada.</div>`}</div></div>
           <p class="muted" id="hint">${esc(def.sideNote)}</p>
         </div>
         <div>
@@ -234,6 +234,7 @@
     if (def.defaultFacing) $('#facing').onchange = (e) => { v.facing = e.target.value; saveSoon(); draw(); };
     main.querySelectorAll('[data-tool]').forEach((b) => (b.onclick = () => setTool(b.dataset.tool)));
     $('#tgrid').onclick = () => { ED.grid = !ED.grid; $('#tgrid').classList.toggle('on', ED.grid); draw(); };
+    $('#tguide').onclick = () => { ED.guide = !ED.guide; $('#tguide').classList.toggle('on', ED.guide); refreshSide(); };
     $('#zin').onclick = () => zoomBy(1.4);
     $('#zout').onclick = () => zoomBy(1 / 1.4);
     $('#zfit').onclick = () => { fit(); draw(); };
@@ -258,6 +259,11 @@
     $('#pts').innerHTML = Angles.VIEWS[key].points.map(([id, label, hint]) =>
       `<div data-pt="${id}" class="${v.pts[id] ? 'done' : ''} ${ED.sel === id ? 'sel' : ''}"><span class="dot"></span><span>${esc(label)}${hint ? `<small>${esc(hint)}</small>` : ''}</span></div>`).join('');
     main.querySelectorAll('[data-pt]').forEach((el) => (el.onclick = () => { ED.sel = el.dataset.pt; setTool('mark'); refreshSide(); draw(); }));
+    const g = $('#guide');
+    const pdef = Angles.VIEWS[key].points.find(([id]) => id === ED.sel);
+    const gh = ED.guide && pdef && window.Guide ? Guide.html(key, pdef[0], esc(pdef[1]), esc(pdef[2] || ''), v.facing || Angles.VIEWS[key].defaultFacing) : '';
+    g.hidden = !gh;
+    g.innerHTML = gh;
     $('#frees').innerHTML = v.free.length
       ? v.free.map((f, i) => `<div class="row" style="justify-content:space-between"><span>${esc(f.label)}: <b>${Angles.fmt(Angles.angleAt(f.pts[0], f.pts[1], f.pts[2]))}°</b></span><button data-fdel="${i}">Apagar</button></div>`).join('')
       : '<p class="muted">Use "Ângulo livre" e toque em 3 pontos; o do meio é o vértice.</p>';

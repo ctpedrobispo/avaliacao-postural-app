@@ -87,6 +87,7 @@
       points: [
         ['cabD', 'Cabeça D', 'ângulo da mandíbula ou lóbulo da orelha, lado direito do aluno'],
         ['cabE', 'Cabeça E', 'mesmo ponto, lado esquerdo do aluno'],
+        ['nar', 'Ponta do nariz', 'opcional: usado no alinhamento da cabeça sobre os ombros'],
         ['acrD', 'Acrômio D', ''],
         ['acrE', 'Acrômio E', ''],
         ['axiD', 'Axila D', 'prega axilar anterior'],
@@ -116,6 +117,8 @@
         { code: 'A9', label: 'Ângulo do joelho esquerdo', type: 'knee', pts: ['asiE', 'joeE', 'torE'], side: 'E' },
         { code: 'A10', label: 'Rotação do pé direito', type: 'foot', pts: ['torD', 'dedD'], side: 'D' },
         { code: 'A11', label: 'Rotação do pé esquerdo', type: 'foot', pts: ['torE', 'dedE'], side: 'E' },
+        { code: 'A12', label: 'Alinhamento do tronco (complementar)', type: 'align', pts: [['acrD', 'acrE'], ['asiD', 'asiE']] },
+        { code: 'A13', label: 'Cabeça sobre os ombros (complementar)', type: 'align', pts: ['nar', ['acrD', 'acrE']] },
       ],
     },
     post: {
@@ -153,6 +156,8 @@
         { code: 'B8', label: 'Pés', type: 'tilt', pts: ['calD', 'calE'] },
         { code: 'B9', label: 'Retropé direito (complementar)', type: 'rearfoot', pts: ['tnD1', 'tnD2', 'calD'], side: 'D' },
         { code: 'B10', label: 'Retropé esquerdo (complementar)', type: 'rearfoot', pts: ['tnE1', 'tnE2', 'calE'], side: 'E' },
+        { code: 'B11', label: 'Alinhamento do tronco (complementar)', type: 'align', pts: [['ombD', 'ombE'], ['psiD', 'psiE']] },
+        { code: 'B12', label: 'Cabeça sobre os ombros (complementar)', type: 'align', pts: [['orD', 'orE'], ['ombD', 'ombE']] },
       ],
     },
   };
