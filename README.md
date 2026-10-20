@@ -1,0 +1,66 @@
+# Avaliação Postural — app do Pedro Bispo
+
+App para avaliação postural por fotos no iPad. Funciona no Safari e pode ser adicionado à tela inicial como um app. As fotos e os dados dos alunos ficam só no aparelho, em armazenamento local do navegador, e não são enviados para nenhum servidor.
+
+## O que faz (versão 1)
+
+- Cadastro do aluno com consentimento de uso de imagem. Sem consentimento, não é possível criar uma avaliação.
+- Quatro vistas: anterior, posterior, lateral direita e lateral esquerda, com grade e fio de prumo.
+- Marcação de pontos com o dedo, lupa de precisão e zoom com dois dedos.
+- Cálculo automático dos ângulos com os mesmos códigos do relatório APECS (A1–A11, B1–B8, C1–C7, D1–D7), mais o retropé na vista posterior (B9, B10, opcional).
+- Ângulo livre de 3 pontos em qualquer foto.
+- Tabela de referências por medida, com classe A–D, fonte, população e erro de medida local. Não existe escala única para o corpo todo.
+- Ficha da avaliação: condições de aquisição, sintomas, movimento, observação, até 3 prioridades e versão em linguagem simples.
+- Laudo para imprimir ou salvar em PDF: capa, uma página por vista com foto marcada, tabela e miniaturas ampliadas, comparação com avaliação anterior, conduta e limites.
+- Cópia de segurança (salvar e restaurar um arquivo).
+
+## Regras seguidas
+
+As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:
+
+- Nenhuma nota global, risco de lesão ou diagnóstico.
+- O laudo descreve, por exemplo, "projeção medial do joelho em apoio estático", e não "valgo".
+- O app avisa quando a observação usa termos que o manual pede para evitar a partir de foto.
+- A comparação entre avaliações só afirma mudança real quando o erro de medida local foi informado.
+- Cada medida mostra o método e a convenção usados.
+
+## Convenções dos ângulos
+
+| Medida | Convenção |
+|---|---|
+| Inclinações (cabeça, ombros, axilas, tronco, pelve, joelhos e pés na posterior) | segmento entre os marcos em relação à horizontal; o texto diz o lado mais alto |
+| Alinhamento corporal | linha do ponto médio superior ao ponto médio da base em relação à vertical |
+| Joelho frontal (A8, A9) | 180° menos o ângulo EIAS–joelho–tornozelo; positivo = projeção medial |
+| Rotação do pé (A10, A11) | tornozelo–2º dedo em relação à vertical; positivo = ponta para fora |
+| Retropé (B9, B10) | linha do tendão do calcâneo em relação à linha inserção–base; positivo = calcâneo lateral |
+| Cabeça lateral (C2, D2) | C7–trago em relação à vertical, como no APECS; o ângulo craniovertebral (complemento, em relação à horizontal) aparece no texto |
+| Pelve lateral (C4, D4) | EIAS–EIPS em relação à horizontal; EIAS abaixo = inclinação anterior na foto |
+| Fêmur e tíbia (C5, C6) | segmento em relação à vertical |
+| Pé lateral (C7, D7) | maléolo lateral–antepé em relação à horizontal |
+
+Nas vistas laterais é preciso informar para que lado o aluno olha na foto. Na lateral direita, o padrão é a direita da foto.
+
+## Conferência com o APECS
+
+Os testes marcam os pontos sobre as posições que o APECS desenhou no relatório de 01/10/2026 e comparam os resultados:
+
+- Lateral direita: cabeça 42°, fêmur 2°, tíbia 7°, alinhamento 5° e pé 29°.
+- Anterior: joelhos 7° e 3°, pés 16° e 8°.
+
+Os nossos valores ficaram a até 2° dos do APECS. A diferença vem da leitura dos pontos em uma imagem reduzida.
+
+## Arquivos
+
+- `index.html`: página e estilos.
+- `angles.js`: motor de ângulos e definição das vistas.
+- `app.js`: telas, marcação na foto e armazenamento.
+- `report.js`: laudo.
+- `angles.test.js`: testes. Rodar com `node --test angles.test.js`.
+- `build.js`: gera `dist/avaliacao-postural.html`, uma página única com tudo embutido, para publicar.
+- `manifest.webmanifest` e `sw.js`: instalação na tela inicial e uso sem internet, quando servido por https.
+
+## Próximas etapas
+
+1. Testes de movimento: Thomas modificado, agachamento overhead, joelho na parede, step-down (ângulo de projeção do joelho).
+2. Detecção automática dos pontos, com ajuste manual.
+3. Vídeo de corrida e agachamento, quadro a quadro.

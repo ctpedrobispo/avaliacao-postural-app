@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Postura PB">
+<meta name="theme-color" content="#1f5f99">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="data:,">
+<title>Avaliação Postural</title>
+<style>
+:root {
+  --bg: #f4f6f9; --card: #ffffff; --ink: #18212b; --muted: #5d6b7a; --line: #d9e0e8;
+  --brand: #1f5f99; --brand-ink: #ffffff; --accent: #e8890c; --ok: #2e7d4f; --warn: #b54708; --bad: #b42318;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161c; --card: #1a222b; --ink: #e8edf2; --muted: #9aa8b6; --line: #2c3742;
+    --brand: #4b8fd1; --brand-ink: #0b1218; --accent: #f0a23a; --ok: #5cc28a; --warn: #f0a23a; --bad: #f07a6e;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+header.top { position: sticky; top: 0; z-index: 5; display: flex; gap: 8px; align-items: center; padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top)); background: var(--brand); color: var(--brand-ink); }
+header.top h1 { font-size: 18px; margin: 0; flex: 1; }
+header.top button { background: transparent; color: var(--brand-ink); border: 1px solid currentColor; }
+main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+h2 { font-size: 20px; margin: 0 0 12px; } h3 { font-size: 17px; margin: 16px 0 8px; }
+button, .btn { font: inherit; padding: 9px 14px; border-radius: 9px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; min-height: 40px; }
+button.primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+button.danger { color: var(--bad); }
+button.on { background: var(--accent); border-color: var(--accent); color: #111; }
+button:disabled { opacity: .5; }
+input, select, textarea { font: inherit; width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+textarea { min-height: 70px; }
+label { display: block; font-size: 14px; color: var(--muted); margin: 8px 0 3px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0 12px; }
+.muted { color: var(--muted); font-size: 14px; }
+.warn { color: var(--warn); font-size: 14px; }
+.list a { display: block; padding: 12px; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.list a:last-child { border-bottom: 0; }
+.tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 10px; }
+.tabs button { white-space: nowrap; }
+.editor { display: grid; grid-template-columns: 1fr 300px; gap: 12px; }
+@media (max-width: 820px) { .editor { grid-template-columns: 1fr; } }
+.stage { position: relative; background: #000; border-radius: 10px; overflow: hidden; touch-action: none; }
+.stage canvas { display: block; width: 100%; touch-action: none; }
+.stage .empty { color: #ddd; padding: 40px 16px; text-align: center; }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.pts { max-height: 60vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.pts div { padding: 8px 10px; border-bottom: 1px solid var(--line); cursor: pointer; display: flex; gap: 8px; align-items: center; }
+.pts div.sel { background: color-mix(in srgb, var(--accent) 25%, transparent); }
+.pts .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--muted); flex: none; }
+.pts .done .dot { background: var(--brand); border-color: var(--brand); }
+.pts small { color: var(--muted); display: block; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+.tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; border: 1px solid var(--line); }
+.tag.out { border-color: var(--warn); color: var(--warn); }
+.tag.in { border-color: var(--ok); color: var(--ok); }
+.table-wrap { overflow-x: auto; }
+#report { display: none; }
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body { background: #fff; color: #000; }
+  header.top, main { display: none !important; }
+  #report { display: block !important; }
+}
+/* Laudo */
+.rp { color: #000; background: #fff; font-size: 11pt; }
+.rp h1 { font-size: 18pt; margin: 0; color: #1f5f99; }
+.rp h2 { font-size: 13pt; background: #e7eef6; padding: 4px 8px; margin: 14px 0 8px; color: #13406b; }
+.rp .page { page-break-after: always; }
+.rp .page:last-child { page-break-after: auto; }
+.rp .head { display: flex; justify-content: space-between; border-bottom: 2px solid #1f5f99; padding-bottom: 6px; margin-bottom: 8px; }
+.rp .view { display: grid; grid-template-columns: 42% 58%; gap: 10px; align-items: start; }
+.rp .view img.full { width: 100%; max-height: 118mm; object-fit: contain; border: 1px solid #ccc; }
+.rp table { font-size: 9.5pt; }
+.rp th, .rp td { border: 1px solid #bbb; padding: 3px 5px; }
+.rp th { background: #fde9c9; color: #000; }
+.rp .crops { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 8px; }
+.rp .crop { border: 1px solid #bbb; font-size: 8.5pt; page-break-inside: avoid; }
+.rp .crop img { width: 100%; display: block; }
+.rp .crop div { padding: 2px 4px; }
+.rp .note { font-size: 9pt; color: #333; }
+.rp .screen-only { margin-bottom: 12px; }
+@media print { .rp .screen-only { display: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button id="nav-back" hidden>‹ Voltar</button>
+  <h1 id="title">Avaliação Postural</h1>
+  <button id="nav-refs">Referências</button>
+  <button id="nav-backup">Cópia de segurança</button>
+</header>
+<main id="main"></main>
+<div id="report"></div>
+<script src="angles.js"></script>
+<script src="report.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
