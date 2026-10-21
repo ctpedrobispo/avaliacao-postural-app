@@ -110,3 +110,43 @@ test('alinhamento do tronco e cabeça sobre o tronco (complementares)', () => {
   assert.equal(post.find((r) => r.code === 'B11').value, 0);
   assert.equal(post.find((r) => r.code === 'B12').value, 0);
 });
+
+test('calibração: escala em px/cm e correção de foto inclinada', () => {
+  // fio de prumo de 100 cm desenhado de (100,0) a (110,100): inclinado 5,7° na foto
+  const cal = A.calibFromPoints({ x: 100, y: 0 }, { x: 110, y: 100 }, 100, 'v');
+  assert.ok(Math.abs(cal.pxPerCm - Math.hypot(10, 100) / 100) < 1e-9);
+  const rot = A.rotatePts({ a: { x: 100, y: 0 }, b: { x: 110, y: 100 } }, cal.rot);
+  assert.ok(Math.abs(rot.a.x - rot.b.x) < 0.05, "a referência fica vertical");
+  // ombros inclinados só porque a foto está torcida: com a calibração, ficam nivelados
+  const th = 5.7106 * Math.PI / 180;
+  const rotate = (p) => ({ x: p.x * Math.cos(-th) - p.y * Math.sin(-th), y: p.x * Math.sin(-th) + p.y * Math.cos(-th) });
+  const pts = { acrD: rotate({ x: 40, y: 100 }), acrE: rotate({ x: 160, y: 100 }) };
+  const semCal = A.computeView('ant', pts).find((r) => r.code === 'A3');
+  const comCal = A.computeView('ant', pts, undefined, cal).find((r) => r.code === 'A3');
+  assert.ok(semCal.value > 4);
+  assert.ok(comCal.value < 0.2);
+  // régua horizontal
+  const calH = A.calibFromPoints({ x: 0, y: 0 }, { x: 100, y: 10 }, 50, 'h');
+  const r2 = A.rotatePts({ a: { x: 0, y: 0 }, b: { x: 100, y: 10 } }, calH.rot);
+  assert.ok(Math.abs(r2.a.y - r2.b.y) < 0.05);
+});
+
+test('deslocamento em cm só existe com calibração e usa a escala', () => {
+  const pts = { cabD: { x: 140, y: 100 }, cabE: { x: 160, y: 100 }, torD: { x: 90, y: 900 }, torE: { x: 110, y: 900 } };
+  assert.equal(A.computeView('ant', pts).find((r) => r.code === 'A14'), undefined);
+  const cal = { pxPerCm: 5, rot: 0, apply: true };
+  const r = A.computeView('ant', pts, undefined, cal).find((x) => x.code === 'A14');
+  assert.equal(r.unit, 'cm');
+  assert.equal(r.value, 10); // 50 px / 5 px por cm
+  assert.match(r.text, /esquerda do aluno/); // cabeça mais à direita da foto = esquerda do aluno
+  assert.equal(A.fmtVal(r), '10 cm');
+});
+
+test('ângulo craniovertebral lateral', () => {
+  // trago 45° à frente de C7 (aluno olhando para a direita): CVA = 45°
+  const pts = { c7: { x: 100, y: 200 }, tra: { x: 150, y: 150 } };
+  const r = A.computeView('latD', pts, 'dir').find((x) => x.code === 'C8');
+  assert.equal(r.value, 45);
+  const atras = A.computeView('latD', { c7: { x: 100, y: 200 }, tra: { x: 50, y: 150 } }, 'dir').find((x) => x.code === 'C8');
+  assert.equal(atras.value, 135);
+});

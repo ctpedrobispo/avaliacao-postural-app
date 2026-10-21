@@ -69,7 +69,7 @@ th { color: var(--muted); font-weight: 600; }
 @media print {
   @page { size: A4; margin: 12mm; }
   body { background: #fff; color: #000; }
-  header.top, main { display: none !important; }
+  header.top, main, .brand, #lock, #cam-overlay { display: none !important; }
   #report { display: block !important; }
 }
 /* Guia do ponto */
@@ -83,6 +83,27 @@ th { color: var(--muted); font-weight: 600; }
 .guide .g-txt .g-side { color: var(--accent); font-weight: 600; }
 .guide .g-txt .g-note { font-size: 10px; opacity: .8; margin-top: 2px; }
 @media (max-width: 560px) { .guide { width: 124px; } }
+[hidden] { display: none !important; }
+/* Trava por PIN */
+#lock { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 20px; }
+#lock .lockbox { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; width: min(360px, 100%); text-align: center; }
+/* Câmera guiada */
+#cam-overlay { position: fixed; inset: 0; z-index: 90; background: #000; }
+#cam-overlay video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+#cam-overlay #cam-grid { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#cam-level { position: absolute; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 99px; font-weight: 600; background: rgba(0,0,0,.6); color: #fff; }
+#cam-level.ok { background: #1b8a3b; } #cam-level.bad { background: #b54708; }
+#cam-msg { position: absolute; left: 12px; right: 12px; bottom: 96px; text-align: center; color: #fff; font-size: 14px; text-shadow: 0 1px 3px #000; }
+#cam-btns { position: absolute; left: 0; right: 0; bottom: max(14px, env(safe-area-inset-bottom)); display: flex; gap: 14px; justify-content: center; }
+#cam-btns button { min-width: 130px; min-height: 54px; font-size: 18px; }
+/* Testes de movimento */
+details.card > summary { cursor: pointer; font-size: 17px; }
+.mv-chk { display: flex; gap: 8px; align-items: flex-start; color: var(--ink); font-size: 15px; margin: 6px 0; }
+.mv-chk input { width: auto; margin-top: 4px; }
+.mv-bi { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 6px 0; font-size: 15px; }
+.mv-bi > span { flex: 1; min-width: 180px; }
+.mv-bi label { display: flex; gap: 4px; align-items: center; margin: 0; color: var(--ink); }
+.mv-bi input { width: auto; }
 /* Marca */
 .brand { display: flex; align-items: center; gap: 14px; justify-content: center; flex-wrap: wrap; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--line); }
 .brand img { height: 56px; width: auto; display: block; }
@@ -119,12 +140,16 @@ th { color: var(--muted); font-weight: 600; }
   <h1 id="title">Avaliação Postural</h1>
   <button id="nav-refs">Referências</button>
   <button id="nav-backup">Cópia de segurança</button>
+  <button id="nav-sec">Segurança</button>
 </header>
 <div class="brand"><img src="logo-ct.png" alt="CT Pedro Bispo"><span class="sep"></span><img src="logo-correplus.webp" alt="Corre+ Assessoria para Corredores"></div>
 <main id="main"></main>
 <div id="report"></div>
+<div id="lock" hidden></div>
+<div id="cam-overlay" hidden></div>
 <script src="angles.js"></script>
 <script src="guide.js"></script>
+<script src="movimento.js"></script>
 <script src="report.js"></script>
 <script src="app.js"></script>
 </body>

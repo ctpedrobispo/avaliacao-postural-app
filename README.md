@@ -20,6 +20,18 @@ Os pontos seguem os mesmos marcos do relatório APECS (frente, costas e laterais
 
 No laudo, a foto marcada usa o mesmo desenho do APECS: rótulos azuis à esquerda, caixas de valor à direita, linhas guia, segmentos laranja, linhas brancas ligando os pontos, pernas em azul e linha de alinhamento em vermelho. As frases de conclusão do APECS (por exemplo, "genu varum") não são copiadas.
 
+## Calibração, repetição e evolução (20/10/2026, parte 2)
+
+- **Calibração:** toque nas duas marcas de um fio de prumo (ou régua) de distância conhecida. O app calcula a escala (px por cm) e **corrige a inclinação da foto** nos ângulos. Com a foto calibrada, aparecem medidas complementares em cm (deslocamentos de cabeça, caixa torácica, quadril, pelve, ombros e, na lateral, trago, acrômio, trocânter e maléolo) e o ângulo craniovertebral (C8/D8). Sem calibração, essas medidas não são calculadas.
+- **Checklist de captura** por avaliação, com os itens do protocolo (distância, altura da câmera, fio de prumo, roupa, adesivos, mesmas condições). O laudo informa quantos foram confirmados.
+- **Câmera guiada:** moldura, grade e nível do aparelho (sensor de movimento). A inclinação do aparelho na captura fica registrada.
+- **Marcação 2:** repita a marcação sem ver a primeira. O app mostra a diferença por medida e calcula o **erro técnico de medida (TEM)** acumulado, que pode ser aplicado como erro local em Referências.
+- **Evolução:** antes e depois lado a lado (na mesma escala real quando as duas fotos estão calibradas), gráfico de cada medida ao longo do tempo e animação das fotos da mesma vista.
+- **Laudo:** relatório do aluno (resumo em linguagem simples) ou registro técnico (completo); máscara no rosto nas vistas anterior e laterais; confirmação "conferi e validei as marcações" antes de gerar (mudar um ponto ou a calibração desfaz a validação); antes e depois, evolução, repetição de marcação e testes de movimento no registro técnico.
+- **Testes de movimento:** agachamento overhead, step-down unipodal, joelho na parede (três tentativas por lado) e Thomas modificado, mais testes livres. Registro de observações e medidas, sem diagnóstico e sem pontos de corte próprios. **Pendente de validação:** conferir protocolos e termos com o manual de movimento.
+- **Segurança:** trava por PIN (guardado só como hash). Não criptografa os dados; protege a tela. Se o PIN for esquecido, só apagando os dados do site no Safari, o que apaga os alunos: faça a cópia de segurança.
+- **Guia de fotos para o aluno:** texto pronto para compartilhar (WhatsApp), copiar ou imprimir.
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:
@@ -61,7 +73,7 @@ Os nossos valores ficaram a até 2° dos do APECS. A diferença vem da leitura d
 - `angles.js`: motor de ângulos e definição das vistas.
 - `app.js`: telas, marcação na foto e armazenamento.
 - `report.js`: laudo.
-- `angles.test.js`: testes. Rodar com `node --test angles.test.js`.
+- `angles.test.js movimento.test.js`: testes. Rodar com `node --test angles.test.js movimento.test.js`.
 - `build.js`: gera `dist/avaliacao-postural.html`, uma página única com tudo embutido, para publicar.
 - `manifest.webmanifest` e `sw.js`: instalação na tela inicial e uso sem internet, quando servido por https.
 

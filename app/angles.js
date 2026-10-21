@@ -121,6 +121,9 @@
         { code: 'A11', label: 'Rotação do pé esquerdo', type: 'foot', pts: ['torE', 'dedE'], side: 'E' },
         { code: 'A12', label: 'Alinhamento do tronco (complementar)', type: 'align', pts: ['est', ['asiD', 'asiE']] },
         { code: 'A13', label: 'Cabeça sobre o tronco (complementar)', type: 'align', pts: ['nar', 'est'] },
+        { code: 'A14', label: 'Deslocamento da cabeça em relação aos pés (cm, complementar)', type: 'offset', pts: [['cabD', 'cabE'], ['torD', 'torE']], names: ['cabeça', 'pés'] },
+        { code: 'A15', label: 'Deslocamento da caixa torácica em relação ao quadril (cm, complementar)', type: 'offset', pts: [['cxtD', 'cxtE'], ['asiD', 'asiE']], names: ['caixa torácica', 'quadril'] },
+        { code: 'A16', label: 'Deslocamento do quadril em relação aos pés (cm, complementar)', type: 'offset', pts: [['asiD', 'asiE'], ['torD', 'torE']], names: ['quadril', 'pés'] },
       ],
     },
     post: {
@@ -162,6 +165,9 @@
         { code: 'B10', label: 'Retropé esquerdo (complementar)', type: 'rearfoot', pts: ['tnE1', 'tnE2', 'calE'], side: 'E' },
         { code: 'B11', label: 'Alinhamento do tronco (complementar)', type: 'align', pts: ['c7p', 'fen'] },
         { code: 'B12', label: 'Cabeça sobre C7 (complementar)', type: 'align', pts: [['orD', 'orE'], 'c7p'] },
+        { code: 'B13', label: 'Deslocamento da cabeça em relação aos pés (cm, complementar)', type: 'offset', pts: [['orD', 'orE'], ['calD', 'calE']], names: ['cabeça', 'pés'] },
+        { code: 'B14', label: 'Deslocamento dos ombros em relação à pelve (cm, complementar)', type: 'offset', pts: [['ombD', 'ombE'], ['psiD', 'psiE']], names: ['ombros', 'pelve'] },
+        { code: 'B15', label: 'Deslocamento da pelve em relação aos pés (cm, complementar)', type: 'offset', pts: [['psiD', 'psiE'], ['calD', 'calE']], names: ['pelve', 'pés'] },
       ],
     },
   };
@@ -190,6 +196,10 @@
       { code: codePrefix + '5', label: 'Joelho (fêmur em relação à vertical)', type: 'vertical', pts: ['tro', 'joe'], sagittal: true },
       { code: codePrefix + '6', label: 'Tíbia', type: 'vertical', pts: ['joe', 'mal'], sagittal: true, complement: true },
       { code: codePrefix + '7', label: 'Ângulo do pé', type: 'tilt', pts: ['mal', 'ded'], plain: true },
+      { code: codePrefix + '8', label: 'Ângulo craniovertebral (complementar)', type: 'cva', pts: ['c7', 'tra'] },
+      { code: codePrefix + '9', label: 'Deslocamento da cabeça (trago) em relação ao acrômio (cm, complementar)', type: 'offset', pts: ['tra', 'acr'], names: ['trago', 'acrômio'] },
+      { code: codePrefix + '10', label: 'Deslocamento do acrômio em relação ao trocânter (cm, complementar)', type: 'offset', pts: ['acr', 'tro'], names: ['acrômio', 'trocânter'] },
+      { code: codePrefix + '11', label: 'Deslocamento do trocânter em relação ao maléolo (cm, complementar)', type: 'offset', pts: ['tro', 'mal'], names: ['trocânter', 'maléolo lateral'] },
     ],
   });
   // Na lateral direita a câmera vê o lado direito: o aluno olha para a direita da foto.
@@ -216,13 +226,39 @@
     head: 'Linha C7–trago em relação à vertical (convenção APECS). O ângulo craniovertebral é o complemento, medido em relação à horizontal.',
     pelvisSag: 'Linha EIAS–EIPS em relação à horizontal da foto.',
     free: 'Ângulo interno entre os três pontos marcados.',
+    cva: 'Ângulo da linha C7–trago em relação à horizontal (ângulo craniovertebral).',
+    offset: 'Distância horizontal entre os dois marcos (ou pontos médios), convertida em cm pela escala da calibração. Só existe com a foto calibrada.',
   };
+
+  // Calibração: duas marcas a uma distância real conhecida (fio de prumo vertical ou régua horizontal).
+  // Dá a escala (px por cm) e a rotação que torna a referência vertical/horizontal, corrigindo foto inclinada.
+  function calibFromPoints(a, b, cm, orient) {
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (!(len > 0) || !(cm > 0)) return null;
+    let rot;
+    if (orient === 'h') {
+      const d = b.x >= a.x ? { x: b.x - a.x, y: b.y - a.y } : { x: a.x - b.x, y: a.y - b.y };
+      rot = -deg(Math.atan2(d.y, d.x));
+    } else {
+      const d = b.y >= a.y ? { x: b.x - a.x, y: b.y - a.y } : { x: a.x - b.x, y: a.y - b.y };
+      rot = deg(Math.atan2(d.x, d.y));
+    }
+    return { a, b, cm, orient: orient === 'h' ? 'h' : 'v', pxPerCm: len / cm, rot: Math.round(rot * 100) / 100, apply: true };
+  }
+  function rotatePts(pts, rotDeg) {
+    const r = (rotDeg * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r), out = {};
+    Object.keys(pts).forEach((k) => { const p = pts[k]; out[k] = { x: p.x * c - p.y * s, y: p.x * s + p.y * c }; });
+    return out;
+  }
+  // Texto de valor com unidade: graus ou cm.
+  function fmtVal(r) { return fmt(r.value) + (r.unit === 'cm' ? ' cm' : '°'); }
 
   // Calcula uma medida. ctx: { view, facing } (facing: 'esq' | 'dir' = para onde o aluno olha na foto).
   function compute(m, pts, ctx) {
     const p = m.pts.map((r) => pick(pts, r));
     if (p.some((x) => !x)) return null;
-    const out = { code: m.code, label: m.label, type: m.type, method: METHOD[m.type], unit: '°' };
+    if (m.type === 'offset' && !(ctx && ctx.pxPerCm > 0)) return null;
+    const out = { code: m.code, label: m.label, type: m.type, method: METHOD[m.type], unit: m.type === 'offset' ? 'cm' : '°' };
     const facingSign = ctx && ctx.facing === 'dir' ? 1 : -1;
     const sideSignOf = (side) => (imageLeftSide[ctx.view] === side ? 1 : -1);
 
@@ -266,6 +302,19 @@
       out.value = Math.abs(v);
       out.signed = v;
       out.text = Math.abs(v) < 0.05 ? 'alinhado' : v > 0 ? 'calcâneo desviado lateralmente em apoio estático' : 'calcâneo desviado medialmente em apoio estático';
+    } else if (m.type === 'cva') {
+      const r = fromVertical(p[0], p[1]);
+      const forward = r.topShift * facingSign > 0;
+      out.value = forward ? 90 - r.angle : 90 + r.angle;
+      out.text = 'orelha ' + (forward ? 'anterior' : 'posterior') + ' à C7 · medido em relação à horizontal';
+    } else if (m.type === 'offset') {
+      const dx = (p[0].x - p[1].x) / ctx.pxPerCm;
+      out.value = Math.abs(dx);
+      out.signed = dx;
+      const [n0, n1] = m.names || ['ponto', 'referência'];
+      if (Math.abs(dx) < 0.05) out.text = n0 + ' e ' + n1 + ' alinhados na foto';
+      else if (ctx.view === 'latD' || ctx.view === 'latE') out.text = n0 + (dx * facingSign > 0 ? ' à frente de ' : ' atrás de ') + n1;
+      else out.text = n0 + ' desviado para a ' + ((dx > 0) === (ctx.view === 'ant') ? 'esquerda' : 'direita') + ' do aluno, em relação a ' + n1;
     } else if (m.type === 'free') {
       out.value = angleAt(p[0], p[1], p[2]);
       out.text = 'ângulo livre';
@@ -280,10 +329,11 @@
     return last === 'D' ? 'direito' : last === 'E' ? 'esquerdo' : id;
   }
 
-  function computeView(viewKey, pts, facing) {
+  function computeView(viewKey, pts, facing, calib) {
     const def = VIEWS[viewKey];
-    const ctx = { view: viewKey, facing: facing || def.defaultFacing };
-    return def.measures.map((m) => compute(m, pts, ctx)).filter(Boolean);
+    const ctx = { view: viewKey, facing: facing || def.defaultFacing, pxPerCm: calib && calib.pxPerCm };
+    const use = calib && calib.apply !== false && calib.rot ? rotatePts(pts, calib.rot) : pts;
+    return def.measures.map((m) => compute(m, use, ctx)).filter(Boolean);
   }
 
   // Linhas a desenhar para uma medida: lista de polilinhas.
@@ -293,5 +343,5 @@
     return [p];
   }
 
-  return { fmt, tilt, fromVertical, angleAt, signedTurn, kneeFrontal, footRotation, rearfoot, mid, compute, computeView, geometry, VIEWS, METHOD, round1 };
+  return { fmt, fmtVal, calibFromPoints, rotatePts, tilt, fromVertical, angleAt, signedTurn, kneeFrontal, footRotation, rearfoot, mid, compute, computeView, geometry, VIEWS, METHOD, round1 };
 });
