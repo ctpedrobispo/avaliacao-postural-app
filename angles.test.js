@@ -150,3 +150,15 @@ test('ângulo craniovertebral lateral', () => {
   const atras = A.computeView('latD', { c7: { x: 100, y: 200 }, tra: { x: 50, y: 150 } }, 'dir').find((x) => x.code === 'C8');
   assert.equal(atras.value, 135);
 });
+
+test('ângulo livre: 3 pontos, linha × horizontal, linha × vertical e incompleto', () => {
+  const tres = { tipo: '3pt', pts: [{ x: 100, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 100 }] };
+  assert.equal(A.freeValue(tres).value, 90);
+  assert.equal(A.freeValue({ pts: tres.pts }).value, 90, 'sem tipo = 3 pontos (dados antigos)');
+  const h = A.freeValue({ tipo: 'h', pts: [{ x: 0, y: 0 }, { x: 100, y: 100 }] });
+  assert.equal(h.value, 45);
+  const v = A.freeValue({ tipo: 'v', pts: [{ x: 0, y: 0 }, { x: 0, y: 100 }] });
+  assert.equal(v.value, 0);
+  assert.equal(A.freeValue({ tipo: '3pt', pts: [{ x: 1, y: 1 }, null, { x: 2, y: 2 }] }), null);
+  assert.equal(A.freeValue({ tipo: 'h', pts: [{ x: 1, y: 1 }] }), null);
+});

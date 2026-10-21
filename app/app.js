@@ -201,13 +201,15 @@
   function invalidate() { if (ED.a && ED.a.validado) ED.a.validado = null; }
 
   // ---------- Editor ----------
-  const ED = { active: false, mark: 1, calibTmp: null, a: null, s: null, tab: 'ant', img: null, sel: null, tool: 'mark', tf: { s: 1, x: 0, y: 0 }, grid: true, plumb: true, guide: true, ptrs: new Map(), drag: null, pinch: null, freeTmp: null, loupe: null };
+  const ED = { active: false, undo: [], pend: null, mark: 1, calibTmp: null, a: null, s: null, tab: 'ant', img: null, sel: null, tool: 'mark', tf: { s: 1, x: 0, y: 0 }, grid: true, plumb: true, guide: true, ptrs: new Map(), drag: null, pinch: null, freeTmp: null, loupe: null };
   let saveTimer;
   const saveSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => DB.put('assessments', ED.a), 400); };
 
   async function openEditor(id, tab) {
     ED.a = normalize(await DB.get('assessments', id));
     ED.mark = 1;
+    ED.undo = [];
+    ED.pend = null;
     ED.s = await DB.get('students', ED.a.studentId);
     ED.active = true;
     setHeader(ED.s.nome + ' · ' + fmtDate(ED.a.data), () => showStudent(ED.s.id));
@@ -243,7 +245,7 @@
         <div>
           <div class="tools">
             <label class="btn" style="margin:0;color:var(--ink)">${v.photo ? 'Trocar foto' : 'Escolher ou tirar foto'}<input type="file" accept="image/*" id="file" hidden></label><button id="cam">Câmera guiada</button>
-            <button data-tool="mark">Marcar</button><button data-tool="pan">Mover</button><button data-tool="plumb">Fio de prumo</button><button data-tool="free">Ângulo livre</button><button data-tool="calib">Calibrar</button>
+            <button id="undo">↶ Desfazer</button><button id="delpt">Apagar ponto</button><button data-tool="mark">Marcar</button><button data-tool="pan">Mover</button><button data-tool="plumb">Fio de prumo</button><button id="open-free" ${v.photo ? '' : 'disabled'}>Ângulos livres</button><button data-tool="calib">Calibrar</button>
             <button id="zin">+</button><button id="zout">−</button><button id="zfit">Ajustar</button>
             <button id="tgrid" class="${ED.grid ? 'on' : ''}">Grade</button><button id="tguide" class="${ED.guide ? 'on' : ''}">Guia</button>
           </div>
@@ -264,6 +266,7 @@
       </div>`;
     $('#file').onchange = (e) => e.target.files[0] && loadPhoto(key, e.target.files[0]);
     $('#cam').onclick = () => openCamera(key);
+    $('#open-free').onclick = () => openFreeFor(key);
     $('#markset').onchange = (e) => { ED.mark = +e.target.value; ED.sel = firstMissing(ED.tab); setTool('mark'); refreshSide(); draw(); };
     renderCalPanel();
     renderChecklist();
@@ -274,7 +277,9 @@
     $('#zin').onclick = () => zoomBy(1.4);
     $('#zout').onclick = () => zoomBy(1 / 1.4);
     $('#zfit').onclick = () => { fit(); draw(); };
-    $('#clrpt').onclick = () => { const P = pset(v); if (ED.sel && P[ED.sel]) { delete P[ED.sel]; invalidate(); saveSoon(); refreshSide(); draw(); } };
+    $('#clrpt').onclick = () => { const P = pset(v); if (!ED.sel || !P[ED.sel]) return alert('Selecione um ponto: toque nele na foto ou na lista. Para corrigir o último que você marcou, use "Desfazer".'); deletePoint(ED.sel); };
+    $('#undo').onclick = undoLast;
+    $('#delpt').onclick = () => $('#clrpt').click();
     $('#clrall').onclick = () => { if (confirm(ED.mark === 2 ? 'Apagar todos os pontos da marcação 2 desta vista?' : 'Apagar todos os pontos desta vista?')) { if (ED.mark === 2) v.pts2 = {}; else { v.pts = {}; v.free = []; } invalidate(); saveSoon(); refreshSide(); draw(); } };
     ED.sel = firstMissing(key);
     refreshSide();
@@ -297,26 +302,22 @@
     const mi = $('#markinfo');
     if (mi) mi.textContent = ED.mark === 2 ? 'Marcação 2: refaça os pontos sem olhar a marcação 1 (ela fica oculta). A diferença entre as duas mostra o erro de marcação.' : (v.pts2 && Object.keys(v.pts2).length ? 'Existe uma marcação 2 nesta vista.' : '');
     $('#pts').innerHTML = Angles.VIEWS[key].points.map(([id, label, hint]) =>
-      `<div data-pt="${id}" class="${PS[id] ? 'done' : ''} ${ED.sel === id ? 'sel' : ''}"><span class="dot"></span><span>${esc(label)}${hint ? `<small>${esc(hint)}</small>` : ''}</span></div>`).join('');
+      `<div data-pt="${id}" class="${PS[id] ? 'done' : ''} ${ED.sel === id ? 'sel' : ''}"><span class="dot"></span><span style="flex:1">${esc(label)}${hint ? `<small>${esc(hint)}</small>` : ''}</span>${PS[id] ? `<button class="mini" data-ptdel="${id}" title="Apagar este ponto">×</button>` : ''}</div>`).join('');
     main.querySelectorAll('[data-pt]').forEach((el) => (el.onclick = () => { ED.sel = el.dataset.pt; setTool('mark'); refreshSide(); draw(); }));
+    main.querySelectorAll('[data-ptdel]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); deletePoint(b.dataset.ptdel); }));
     const g = $('#guide');
     const pdef = Angles.VIEWS[key].points.find(([id]) => id === ED.sel);
     const gh = ED.guide && pdef && window.Guide ? Guide.html(key, pdef[0], esc(pdef[1]), esc(pdef[2] || ''), v.facing || Angles.VIEWS[key].defaultFacing) : '';
     g.hidden = !gh;
     g.innerHTML = gh;
-    $('#frees').innerHTML = v.free.length
-      ? v.free.map((f, i) => `<div class="row" style="justify-content:space-between"><span>${esc(f.label)}: <b>${Angles.fmt(Angles.angleAt(f.pts[0], f.pts[1], f.pts[2]))}°</b></span><button data-fdel="${i}">Apagar</button></div>`).join('')
-      : '<p class="muted">Use "Ângulo livre" e toque em 3 pontos; o do meio é o vértice.</p>';
-    main.querySelectorAll('[data-fdel]').forEach((b) => (b.onclick = () => { v.free.splice(+b.dataset.fdel, 1); saveSoon(); refreshSide(); draw(); }));
+    const fl = (v.free || []).map((f) => ({ f, fv: Angles.freeValue(f) }));
+    $('#frees').innerHTML = (fl.length ? fl.map(({ f, fv }) => `<div class="row" style="justify-content:space-between"><span>${esc(f.label)}</span><b>${fv ? Angles.fmt(fv.value) + '°' : 'incompleto'}</b></div>`).join('') : '<p class="muted">Nenhum ângulo livre nesta foto.</p>') + `<button id="open-free2" ${v.photo ? '' : 'disabled'}>Abrir ângulos livres</button>`;
+    $('#open-free2').onclick = () => openFreeFor(key);
   }
 
   function setTool(t) {
     ED.calibTmp = t === 'calib' ? [] : null;
-    if (t === 'free') {
-      const label = prompt('Nome do ângulo (ex.: tronco no agachamento):', 'Ângulo livre ' + (ED.a.views[ED.tab].free.length + 1));
-      if (label === null) return;
-      ED.freeTmp = { label: label || 'Ângulo livre', pts: [] };
-    } else ED.freeTmp = null;
+    ED.freeTmp = null;
     ED.tool = t;
     main.querySelectorAll('[data-tool]').forEach((b) => b.classList.toggle('on', b.dataset.tool === t));
     const hint = $('#hint');
@@ -429,12 +430,6 @@
       draw();
       return;
     }
-    if (ED.tool === 'free') {
-      ED.freeTmp.pts.push(q);
-      if (ED.freeTmp.pts.length === 3) { v.free.push(ED.freeTmp); saveSoon(); setTool('mark'); refreshSide(); }
-      draw();
-      return;
-    }
     // Tocar e arrastar um ponto existente move esse ponto; um toque simples marca o ponto selecionado.
     const hit = nearestPoint(q, 26);
     ED.drag = { id: null, hit, start: p, q };
@@ -444,10 +439,36 @@
 
   function startPointDrag(id, q, placed) {
     ED.sel = id;
-    pset(ED.a.views[ED.tab])[id] = q;
+    const set = pset(ED.a.views[ED.tab]);
+    ED.pend = { tab: ED.tab, mark: ED.mark, id, prev: set[id] ? { ...set[id] } : null };
+    set[id] = q;
     invalidate();
     ED.drag = { id, placed };
     refreshSide();
+  }
+
+  // Apaga um ponto (guarda no histórico) e deixa o ponto selecionado para marcar de novo.
+  function deletePoint(id) {
+    const P = pset(ED.a.views[ED.tab]);
+    if (!P[id]) return;
+    ED.undo.push({ tab: ED.tab, mark: ED.mark, id, prev: { ...P[id] } });
+    delete P[id];
+    ED.sel = id;
+    invalidate(); saveSoon(); refreshSide(); draw();
+  }
+  // Desfaz a última marcação, movimento ou exclusão de ponto nesta vista.
+  function undoLast() {
+    for (let i = ED.undo.length - 1; i >= 0; i--) {
+      const e = ED.undo[i];
+      if (e.tab !== ED.tab || e.mark !== ED.mark) continue;
+      ED.undo.splice(i, 1);
+      const set = pset(ED.a.views[ED.tab]);
+      if (e.prev) set[e.id] = e.prev; else delete set[e.id];
+      ED.sel = e.id;
+      invalidate(); saveSoon(); refreshSide(); draw();
+      return;
+    }
+    alert('Nada para desfazer nesta vista.');
   }
 
   function onMove(e) {
@@ -485,12 +506,17 @@
   function onUp(e) {
     ED.ptrs.delete(e.pointerId);
     if (ED.ptrs.size < 2) ED.pinch = null;
-    if (ED.drag && !ED.drag.id && !ED.drag.pan && ED.sel) {
-      // Toque simples: marca (ou reposiciona) o ponto selecionado onde o dedo tocou.
-      startPointDrag(ED.sel, ED.drag.q, !pset(ED.a.views[ED.tab])[ED.sel]);
+    if (ED.drag && !ED.drag.id && !ED.drag.pan) {
+      if (ED.drag.hit) { ED.sel = ED.drag.hit; refreshSide(); } // tocar num ponto existente só o seleciona
+      else if (ED.sel) startPointDrag(ED.sel, ED.drag.q, !pset(ED.a.views[ED.tab])[ED.sel]); // toque no vazio marca o ponto selecionado
     }
     if (ED.drag && ED.drag.id) {
       saveSoon();
+      if (ED.pend) {
+        const cur = pset(ED.a.views[ED.tab])[ED.pend.id];
+        if (!ED.pend.prev || !cur || Math.hypot(cur.x - ED.pend.prev.x, cur.y - ED.pend.prev.y) > 0.5 / ED.tf.s) { ED.undo.push(ED.pend); if (ED.undo.length > 300) ED.undo.shift(); }
+        ED.pend = null;
+      }
       if (ED.drag.placed) ED.sel = firstMissing(ED.tab) || ED.drag.id;
       refreshSide();
     }
@@ -604,15 +630,7 @@
         tagLabel(c, `${m.code} ${Angles.fmtVal(r)}`, at.x + 10 * u, at.y - 10 * u, u);
       }
     });
-    (opt.only ? [] : (v.free || []).concat(opt.tmp ? [opt.tmp] : [])).forEach((f) => {
-      c.strokeStyle = '#9b59ff';
-      c.lineWidth = 3.5 * u;
-      c.beginPath();
-      f.pts.forEach((p, i) => (i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)));
-      c.stroke();
-      f.pts.forEach((p) => dot(c, p, u, '#9b59ff', false));
-      if (f.pts.length === 3 && !opt.noLabels) tagLabel(c, `${f.label}: ${Angles.fmt(Angles.angleAt(f.pts[0], f.pts[1], f.pts[2]))}°`, f.pts[1].x + 10 * u, f.pts[1].y + 22 * u, u);
-    });
+    if (!opt.only && (v.free || []).length) drawFreeAngles(c, v.free.map(normFree), u, { labels: !opt.noLabels });
     if (opt.style === 'apecs' && !opt.noLabels && !opt.only) drawCallouts(c, u, iw, ih, key, v, results);
     const onlyIds = opt.only ? new Set(def.measures.find((m) => m.code === opt.only).pts.flat()) : null;
     Object.entries(P).forEach(([id, p]) => { if (!onlyIds || onlyIds.has(id)) dot(c, p, u, opt.set === 2 ? '#8e44ad' : '#1f78d1', id === opt.sel); });
@@ -739,7 +757,7 @@
         ${g.res.map((r) => { const f = flagFor(r); return `<tr><td>${r.code}</td><td>${esc(r.label)}</td><td><b>${Angles.fmtVal(r)}</b></td><td>${esc(r.text)}</td><td><span class="tag ${f.cls}">${esc(f.txt)}</span></td>
           <td><select data-cond="${r.code}">${CONDUTA.map((o) => `<option ${ED.a.conduta[r.code] === o ? 'selected' : ''}>${o}</option>`).join('')}</select></td></tr>`; }).join('')}
       </table></div>` : '<p class="muted">Nenhuma medida completa nesta vista.</p>'}
-      ${ED.a.views[g.key].free.length ? `<p>Ângulos livres: ${ED.a.views[g.key].free.map((f) => `${esc(f.label)} <b>${Angles.fmt(Angles.angleAt(f.pts[0], f.pts[1], f.pts[2]))}°</b>`).join(' · ')}</p>` : ''}`).join('')}
+      ${ED.a.views[g.key].free.some((f) => Angles.freeValue(f)) ? `<p>Ângulos livres: ${ED.a.views[g.key].free.filter((f) => Angles.freeValue(f)).map((f) => `${esc(f.label)} <b>${Angles.fmt(Angles.freeValue(f).value)}°</b>`).join(' · ')}</p>` : ''}`).join('')}
       </div>`;
     main.insertAdjacentHTML('beforeend', extraResultsHtml());
     main.querySelectorAll('[data-cond]').forEach((s) => (s.onchange = () => { ED.a.conduta[s.dataset.cond] = s.value; saveSoon(); }));
@@ -835,11 +853,13 @@
         <option value="tecnico" ${a.tipoLaudo === 'tecnico' ? 'selected' : ''}>Registro técnico (completo, para o avaliador)</option>
         <option value="aluno" ${a.tipoLaudo === 'aluno' ? 'selected' : ''}>Relatório do aluno (resumo em linguagem simples)</option></select></div></div>
       <label style="display:flex;gap:8px;align-items:center;color:var(--ink);margin-top:8px"><input type="checkbox" id="l-mask" style="width:auto" ${a.mascara ? 'checked' : ''}> Ocultar o rosto nas fotos do laudo</label>
+      <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="l-fmov" style="width:auto" ${a.fotosMov ? 'checked' : ''}> Incluir no laudo as fotos dos testes de movimento (o rosto não é ocultado nelas)</label>
       <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="l-val" style="width:auto" ${a.validado ? 'checked' : ''}> Conferi e validei as marcações de todas as vistas</label>
       <p class="muted">${a.validado ? 'Validado em ' + new Date(a.validado.em).toLocaleString('pt-BR') + '. Se você mudar um ponto ou a calibração, a validação é desfeita.' : 'Marque a confirmação para gerar o laudo: as marcações são validadas por quem avalia.'}</p></div>`;
     const bindControls = () => {
       $('#l-tipo').onchange = (e) => { a.tipoLaudo = e.target.value; saveSoon(); renderLaudo(); };
       $('#l-mask').onchange = (e) => { a.mascara = e.target.checked; saveSoon(); renderLaudo(); };
+      $('#l-fmov').onchange = (e) => { a.fotosMov = e.target.checked; saveSoon(); renderLaudo(); };
       $('#l-val').onchange = (e) => { a.validado = e.target.checked ? { ok: true, em: new Date().toISOString() } : null; saveSoon(); renderLaudo(); };
       bindTabs();
     };
@@ -848,8 +868,8 @@
     bindControls();
     const prev = a.comparar ? await DB.get('assessments', a.comparar).then((x) => x && normalize(x)) : null;
     const history = (await studentHistory(a.studentId)).map((x) => (x.id === a.id ? a : x));
-    const html = await Report.build({ a, s: ED.s, prev, history, perfil: state.perfil, refs: state.refs, opts: { tipo: a.tipoLaudo, mascara: a.mascara },
-      helpers: { loadImg, drawView, allResults, flagFor, refFor, CLASSES, CONDICOES, SITUACOES, fmtDate, esc, CHECKLIST, reproRows, calibNotes, beforeAfterCanvas, chartImage, seriesFor } });
+    const html = await Report.build({ a, s: ED.s, prev, history, perfil: state.perfil, refs: state.refs, opts: { tipo: a.tipoLaudo, mascara: a.mascara, fotosMov: !!a.fotosMov },
+      helpers: { loadImg, drawView, allResults, flagFor, refFor, CLASSES, CONDICOES, SITUACOES, fmtDate, esc, CHECKLIST, reproRows, calibNotes, beforeAfterCanvas, chartImage, seriesFor, freeImage } });
     main.innerHTML = controls + `<div class="card"><div class="row"><button class="primary" id="print">Imprimir / salvar em PDF</button>
       <span class="muted">No iPad: toque em Imprimir, depois em Compartilhar (ou afaste dois dedos na prévia) e escolha "Salvar em Arquivos".</span></div></div>
       <div class="card rp">${html}</div>`;
@@ -864,6 +884,7 @@
     a.mov = a.mov || { t: {}, livres: [] };
     a.mov.t = a.mov.t || {};
     a.mov.livres = a.mov.livres || [];
+    a.mov.fotos = a.mov.fotos || {};
     const M = a.mov;
     const sum = Mov.summarize(M);
     const cnt = (id) => { const t = sum.tests.find((x) => x.id === id); return t ? t.lines.length : 0; };
@@ -882,13 +903,19 @@
       if (c.t === 'tri') return `<div><label>${esc(c.label)}: três tentativas por lado</label>${['D', 'E'].map((s) => `<div class="row" style="margin-bottom:4px"><b style="width:70px">${s === 'D' ? 'Direito' : 'Esquerdo'}</b>${[0, 1, 2].map((i) => `<input inputmode="decimal" data-mv="${id}" data-t="tri" data-s="${s}" data-i="${i}" value="${esc(v && v[s] && v[s][i] || '')}" style="flex:1;min-width:60px">`).join('')}</div>`).join('')}</div>`;
       return '';
     };
+    const fotosHtml = (t) => {
+      const L = M.fotos[t.id] || [];
+      return `<h3>Fotos e ângulos</h3><p class="muted">Foto do teste (um quadro do agachamento, a posição final do joelho na parede…). Em "Medir" você traça ângulos livres, ajusta os pontos e mantém vários ângulos na mesma foto.</p>
+        <div class="row"><label class="btn" style="margin:0;color:var(--ink)">Adicionar foto<input type="file" accept="image/*" data-mvfoto="${t.id}" hidden></label></div>
+        ${L.map((f) => `<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:6px 0"><img src="${f.photo}" alt="" style="height:64px;border-radius:6px"><input data-mvfn="${t.id}|${f.id}" value="${esc(f.nome)}" style="flex:1;min-width:120px"><span class="muted">${(f.free || []).filter((x) => Angles.freeValue(x)).length} ângulo(s)</span><button data-mvmed="${t.id}|${f.id}">Medir</button><button class="danger" data-mvdel="${t.id}|${f.id}">Apagar</button></div>`).join('')}`;
+    };
     main.innerHTML = `${tabsHtml()}
       <div class="card"><h2>Testes de movimento</h2>
         <p class="muted">Registro do que foi observado, sem diagnóstico e sem pontos de corte próprios. Marque só o que viu. Os protocolos abaixo são um guia: confira com o seu manual de movimento.</p></div>
-      ${Mov.TESTS.map((t) => `<details class="card mv"><summary><b>${esc(t.nome)}</b> <span class="muted">${cnt(t.id) ? '· ' + cnt(t.id) + ' registro(s)' : ''}</span></summary>
+      ${Mov.TESTS.map((t) => `<details class="card mv" data-tid="${t.id}" ${ED.movOpen === t.id ? 'open' : ''}><summary><b>${esc(t.nome)}</b> <span class="muted">${cnt(t.id) ? '· ' + cnt(t.id) + ' registro(s)' : ''}</span></summary>
         <p class="muted">${esc(t.protocolo)}</p>
         <div class="grid2">${t.campos.map((c) => field(t, c)).join('')}</div>
-        <label>Observação</label><textarea data-mv="${t.id}|obs" data-t="txt">${esc(val(t.id, 'obs') || '')}</textarea></details>`).join('')}
+        <label>Observação</label><textarea data-mv="${t.id}|obs" data-t="txt">${esc(val(t.id, 'obs') || '')}</textarea>${fotosHtml(t)}</details>`).join('')}
       <div class="card"><h2>Testes livres</h2><p class="muted">Outro teste com medida nos dois lados (ex.: elevação da perna estendida, ponte unilateral em repetições).</p>
         <div id="livres">${M.livres.map((l, i) => `<div class="grid2" style="border-bottom:1px solid var(--line);padding-bottom:8px">
           <div><label>Nome do teste</label><input data-lv="${i}" data-k="nome" value="${esc(l.nome)}"></div>
@@ -912,6 +939,30 @@
     main.querySelectorAll('[data-lv]').forEach((el) => (el.oninput = () => { M.livres[+el.dataset.lv][el.dataset.k] = el.value; saveSoon(); }));
     main.querySelectorAll('[data-lvdel]').forEach((b) => (b.onclick = () => { M.livres.splice(+b.dataset.lvdel, 1); saveSoon(); renderMov(); }));
     $('#lv-add').onclick = () => { M.livres.push({ nome: '', unidade: '', d: '', e: '', obs: '' }); saveSoon(); renderMov(); };
+    main.querySelectorAll('details.mv').forEach((d) => d.addEventListener('toggle', () => { if (d.open) ED.movOpen = d.dataset.tid; }));
+    main.querySelectorAll('[data-mvfoto]').forEach((inp) => (inp.onchange = async () => {
+      const file = inp.files[0];
+      if (!file) return;
+      const tid = inp.dataset.mvfoto;
+      const photo = await shrinkToDataUrl(file, 1800);
+      (M.fotos[tid] = M.fotos[tid] || []).push({ id: uid(), nome: 'Foto ' + (M.fotos[tid].length + 1), photo, free: [] });
+      ED.movOpen = tid;
+      await DB.put('assessments', ED.a);
+      renderMov();
+    }));
+    const findFoto = (key) => { const [tid, fid] = key.split('|'); return { tid, f: (M.fotos[tid] || []).find((x) => x.id === fid) }; };
+    main.querySelectorAll('[data-mvfn]').forEach((el) => (el.oninput = () => { const { f } = findFoto(el.dataset.mvfn); if (f) { f.nome = el.value; saveSoon(); } }));
+    main.querySelectorAll('[data-mvmed]').forEach((b) => (b.onclick = () => {
+      const { tid, f } = findFoto(b.dataset.mvmed);
+      if (!f) return;
+      openFreeWorkspace({ title: Mov.TESTS.find((t) => t.id === tid).nome + ' — ' + f.nome, photo: f.photo, free: f.free, onChange: saveSoon, back: () => { ED.movOpen = tid; renderTab('mov'); } });
+    }));
+    main.querySelectorAll('[data-mvdel]').forEach((b) => (b.onclick = () => {
+      const { tid, f } = findFoto(b.dataset.mvdel);
+      if (!f || !confirm('Apagar esta foto e os ângulos medidos nela?')) return;
+      M.fotos[tid] = M.fotos[tid].filter((x) => x.id !== f.id);
+      ED.movOpen = tid; saveSoon(); renderMov();
+    }));
   }
 
   // ---------- Checklist de captura ----------
@@ -1274,6 +1325,308 @@
   function start() {
     if (state.pin) { showLock(); }
     showHome();
+  }
+
+
+  // ---------- Ângulos livres: espaço próprio, separado da marcação postural ----------
+  // Serve para qualquer foto: vista postural, agachamento overhead, joelho na parede, step-down…
+  const FREE_TIPOS = {
+    '3pt': { n: 3, nome: 'Ângulo de 3 pontos', rot: 'Ângulo', dicas: ['1º ponto', 'vértice (2º ponto)', '3º ponto'] },
+    h: { n: 2, nome: 'Linha × horizontal', rot: 'Inclinação', dicas: ['1º ponto', '2º ponto'] },
+    v: { n: 2, nome: 'Linha × vertical', rot: 'Desvio', dicas: ['1º ponto', '2º ponto'] },
+  };
+  function normFree(f) {
+    f.tipo = f.tipo || '3pt';
+    f.label = f.label || 'Ângulo';
+    const n = FREE_TIPOS[f.tipo].n;
+    f.pts = f.pts || [];
+    while (f.pts.length < n) f.pts.push(null);
+    return f;
+  }
+  const freeHole = (f) => { const n = FREE_TIPOS[f.tipo || '3pt'].n; for (let i = 0; i < n; i++) if (!f.pts[i]) return i; return -1; };
+
+  // Desenha os ângulos livres de uma lista. o: { sel:{ai,pi}, labels, numbers }
+  function drawFreeAngles(c, list, u, o) {
+    o = o || {};
+    list.forEach((f, ai) => {
+      const ps = f.pts || [];
+      const isSel = o.sel && o.sel.ai === ai;
+      c.strokeStyle = '#9b59ff';
+      c.lineWidth = (isSel ? 4.5 : 3.5) * u;
+      c.lineCap = 'round';
+      c.beginPath();
+      let on = false;
+      ps.forEach((p) => { if (!p) { on = false; return; } if (!on) { c.moveTo(p.x, p.y); on = true; } else c.lineTo(p.x, p.y); });
+      c.stroke();
+      c.lineCap = 'butt';
+      if ((f.tipo === 'h' || f.tipo === 'v') && ps[0] && ps[1]) {
+        const len = Math.hypot(ps[1].x - ps[0].x, ps[1].y - ps[0].y);
+        c.strokeStyle = 'rgba(155,89,255,0.7)'; c.lineWidth = 1.8 * u; c.setLineDash([6 * u, 5 * u]);
+        c.beginPath(); c.moveTo(ps[0].x, ps[0].y);
+        if (f.tipo === 'h') c.lineTo(ps[0].x + (ps[1].x >= ps[0].x ? 1 : -1) * len, ps[0].y);
+        else c.lineTo(ps[0].x, ps[0].y + (ps[1].y >= ps[0].y ? 1 : -1) * len);
+        c.stroke(); c.setLineDash([]);
+      }
+      ps.forEach((p, pi) => {
+        if (!p) return;
+        dot(c, p, u, '#9b59ff', !!(o.sel && o.sel.ai === ai && o.sel.pi === pi));
+        if (o.numbers) { c.font = `700 ${12 * u}px -apple-system, sans-serif`; c.fillStyle = '#9b59ff'; c.fillText(String(pi + 1), p.x + 9 * u, p.y - 9 * u); }
+      });
+      if (o.labels !== false) {
+        const fv = Angles.freeValue(f);
+        if (fv) { const vtx = (f.tipo || '3pt') === '3pt' ? ps[1] : ps[0]; tagLabel(c, `${f.label}: ${Angles.fmt(fv.value)}°`, vtx.x + 10 * u, vtx.y + 22 * u, u); }
+      }
+    });
+  }
+
+  function openFreeFor(key) {
+    const v = ED.a.views[key];
+    if (!v.photo) return;
+    openFreeWorkspace({ title: 'Ângulos livres — ' + Angles.VIEWS[key].label, photo: v.photo, free: v.free, onChange: saveSoon, back: () => renderTab(key) });
+  }
+
+  // cfg: { title, photo (dataURL), free (lista alterada no lugar), onChange(), back() }
+  function openFreeWorkspace(cfg) {
+    cfg.free.forEach(normFree);
+    const W = { img: null, tf: { s: 1, x: 0, y: 0 }, grid: true, sel: null, adding: null, ptrs: new Map(), drag: null, pinch: null, loupe: null, undo: [], step: 1, nudge: null, alive: true, hold: null };
+    setHeader(cfg.title, () => { W.alive = false; cfg.back(); });
+    main.innerHTML = `<div class="editor"><div>
+        <div class="tools"><button id="fw-undo">↶ Desfazer</button><button id="fw-delpt">Apagar ponto</button><button id="fw-zin">+</button><button id="fw-zout">−</button><button id="fw-fit">Ajustar</button><button id="fw-grid" class="on">Grade</button></div>
+        <div class="stage" id="fw-stage"><canvas id="fw-cv"></canvas></div>
+        <p class="muted" id="fw-hint"></p></div>
+      <div>
+        <h3>Novo ângulo</h3>
+        <div class="row"><button class="primary" id="fw-add3">+ Ângulo de 3 pontos</button><button id="fw-addh">+ Linha × horizontal</button><button id="fw-addv">+ Linha × vertical</button></div>
+        <p class="muted">Cada ângulo tem nome, pode ser ajustado quantas vezes quiser e não interfere na marcação postural.</p>
+        <div id="fw-list"></div>
+        <h3>Ajuste fino do ponto selecionado</h3>
+        <div class="row"><label style="margin:0">Passo</label><select id="fw-step" style="width:auto"><option value="0.5">0,5 px</option><option value="1" selected>1 px</option><option value="3">3 px</option></select></div>
+        <div class="nudge"><span></span><button data-nd="0,-1">▲</button><span></span><button data-nd="-1,0">◀</button><span class="muted" style="text-align:center">segure</span><button data-nd="1,0">▶</button><span></span><button data-nd="0,1">▼</button><span></span></div>
+      </div></div>`;
+    const cv = $('#fw-cv');
+    let g;
+    const size = () => {
+      const w = $('#fw-stage').clientWidth, h = Math.max(380, Math.min(window.innerHeight - 200, 1100)), dpr = window.devicePixelRatio || 1;
+      cv.width = w * dpr; cv.height = h * dpr; cv.style.height = h + 'px';
+      g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    const fit = () => { const w = cv.clientWidth, h = cv.clientHeight, iw = W.img.naturalWidth, ih = W.img.naturalHeight, s = Math.min(w / iw, h / ih); W.tf = { s, x: (w - iw * s) / 2, y: (h - ih * s) / 2 }; };
+    const toImg = (p) => ({ x: (p.x - W.tf.x) / W.tf.s, y: (p.y - W.tf.y) / W.tf.s });
+    const evPos = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    const changed = () => { cfg.onChange && cfg.onChange(); };
+
+    const render = (ctx, tf, loupe) => {
+      ctx.save();
+      ctx.translate(tf.x, tf.y); ctx.scale(tf.s, tf.s);
+      ctx.drawImage(W.img, 0, 0);
+      if (W.grid && !loupe) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1 / tf.s;
+        const iw = W.img.naturalWidth, ih = W.img.naturalHeight, step = iw / 12;
+        ctx.beginPath();
+        for (let x = step; x < iw; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, ih); }
+        for (let y = step; y < ih; y += step) { ctx.moveTo(0, y); ctx.lineTo(iw, y); }
+        ctx.stroke();
+      }
+      drawFreeAngles(ctx, cfg.free, 1 / tf.s, { sel: W.sel, labels: !loupe, numbers: !loupe });
+      ctx.restore();
+    };
+    const draw = () => {
+      if (!W.img || !g) return;
+      const w = cv.clientWidth, h = cv.clientHeight;
+      g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+      render(g, W.tf, false);
+      if (W.loupe) {
+        const R = 70, Z = 3, { p, q } = W.loupe;
+        const cx = p.x < 2 * R + 40 && p.y < 2 * R + 40 ? w - R - 12 : R + 12, cy = R + 12;
+        g.save(); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.clip();
+        g.fillStyle = '#000'; g.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+        const s = W.tf.s * Z;
+        render(g, { s, x: cx - q.x * s, y: cy - q.y * s }, true);
+        g.restore();
+        g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2);
+        g.moveTo(cx - 12, cy); g.lineTo(cx + 12, cy); g.moveTo(cx, cy - 12); g.lineTo(cx, cy + 12); g.stroke();
+      }
+    };
+    const hitTest = (q, radiusPx) => {
+      let best = null, bd = radiusPx / W.tf.s;
+      cfg.free.forEach((f, ai) => f.pts.forEach((p, pi) => { if (!p) return; const d = Math.hypot(p.x - q.x, p.y - q.y); if (d < bd) { bd = d; best = { ai, pi }; } }));
+      return best;
+    };
+    const hint = () => {
+      const el = $('#fw-hint');
+      if (!el) return;
+      if (W.adding != null && cfg.free[W.adding]) {
+        const f = cfg.free[W.adding], i = freeHole(f), t = FREE_TIPOS[f.tipo];
+        el.textContent = i >= 0 ? `Toque na foto: ${t.dicas[i]} de "${f.label}" (${i + 1} de ${t.n}). Pode errar: use Desfazer ou Apagar ponto.` : '';
+      } else if (W.sel) el.textContent = 'Ponto selecionado: arraste para ajustar, use as setas para mexer bem devagar, ou toque em Apagar ponto para marcar de novo.';
+      else el.textContent = 'Toque num ponto para ajustá-lo. Arraste o fundo para mover a foto e use dois dedos para aproximar.';
+    };
+    const renderList = () => {
+      const box = $('#fw-list');
+      if (!box) return;
+      box.innerHTML = cfg.free.length ? cfg.free.map((f, ai) => {
+        const fv = Angles.freeValue(f), t = FREE_TIPOS[f.tipo], filled = f.pts.filter(Boolean).length;
+        const isSel = W.sel && W.sel.ai === ai;
+        return `<div class="card" style="padding:10px;margin-bottom:8px;${isSel || W.adding === ai ? 'border-color:var(--accent)' : ''}">
+          <input data-fl="${ai}" value="${esc(f.label)}">
+          <div class="row" style="justify-content:space-between;margin-top:4px"><span class="muted">${esc(t.nome)}</span><span style="font-size:18px"><b>${fv ? Angles.fmt(fv.value) + '°' : 'incompleto'}</b></span></div>
+          ${fv ? `<div class="muted">${esc(fv.text)}</div>` : `<div class="warn">${filled} de ${t.n} pontos</div>`}
+          <div class="row" style="margin-top:6px">${f.pts.slice(0, t.n).map((p, pi) => `<button data-fp="${ai},${pi}" class="${W.sel && W.sel.ai === ai && W.sel.pi === pi ? 'on' : ''}" ${p ? '' : 'disabled'}>${pi + 1}</button>`).join('')}
+            <button data-fredo="${ai}">Refazer</button><button class="danger" data-fdel="${ai}">Apagar</button></div></div>`;
+      }).join('') : '<p class="muted">Nenhum ângulo ainda. Escolha um tipo acima e toque na foto.</p>';
+      box.querySelectorAll('[data-fl]').forEach((el) => (el.oninput = () => { cfg.free[+el.dataset.fl].label = el.value; changed(); draw(); }));
+      box.querySelectorAll('[data-fp]').forEach((b) => (b.onclick = () => { const [ai, pi] = b.dataset.fp.split(',').map(Number); W.sel = { ai, pi }; W.nudge = null; renderList(); hint(); draw(); }));
+      box.querySelectorAll('[data-fredo]').forEach((b) => (b.onclick = () => { const ai = +b.dataset.fredo, f = cfg.free[ai]; f.pts = f.pts.map(() => null); W.adding = ai; W.sel = null; changed(); renderList(); hint(); draw(); }));
+      box.querySelectorAll('[data-fdel]').forEach((b) => (b.onclick = () => {
+        const ai = +b.dataset.fdel;
+        if (!confirm(`Apagar o ângulo "${cfg.free[ai].label}"?`)) return;
+        cfg.free.splice(ai, 1); W.sel = null; W.adding = null; changed(); renderList(); hint(); draw();
+      }));
+    };
+    const addAngle = (tipo) => {
+      const t = FREE_TIPOS[tipo], f = normFree({ tipo, label: `${t.rot} ${cfg.free.length + 1}`, pts: [] });
+      cfg.free.push(f); W.adding = cfg.free.length - 1; W.sel = null; W.nudge = null;
+      changed(); renderList(); hint(); draw();
+    };
+    const pushUndo = (f, pi, prev) => { W.undo.push({ f, pi, prev: prev ? { ...prev } : null }); if (W.undo.length > 200) W.undo.shift(); };
+
+    $('#fw-add3').onclick = () => addAngle('3pt');
+    $('#fw-addh').onclick = () => addAngle('h');
+    $('#fw-addv').onclick = () => addAngle('v');
+    $('#fw-undo').onclick = () => {
+      const e = W.undo.pop();
+      if (!e) return alert('Nada para desfazer.');
+      const ai = cfg.free.indexOf(e.f);
+      if (ai < 0) return;
+      e.f.pts[e.pi] = e.prev;
+      W.sel = { ai, pi: e.pi }; W.nudge = null;
+      if (!e.prev) W.adding = ai;
+      changed(); renderList(); hint(); draw();
+    };
+    $('#fw-delpt').onclick = () => {
+      if (!W.sel) return alert('Toque num ponto (na foto ou nos botões 1, 2, 3 do ângulo) para selecioná-lo e depois apague.');
+      const f = cfg.free[W.sel.ai];
+      if (!f || !f.pts[W.sel.pi]) return;
+      pushUndo(f, W.sel.pi, f.pts[W.sel.pi]);
+      f.pts[W.sel.pi] = null; W.adding = W.sel.ai; W.nudge = null;
+      changed(); renderList(); hint(); draw();
+    };
+    $('#fw-zin').onclick = () => { zoomAt(1.4); };
+    $('#fw-zout').onclick = () => { zoomAt(1 / 1.4); };
+    $('#fw-fit').onclick = () => { fit(); draw(); };
+    $('#fw-grid').onclick = () => { W.grid = !W.grid; $('#fw-grid').classList.toggle('on', W.grid); draw(); };
+    $('#fw-step').onchange = (e) => { W.step = +e.target.value; };
+    const zoomAt = (f, cx, cy) => {
+      cx = cx == null ? cv.clientWidth / 2 : cx; cy = cy == null ? cv.clientHeight / 2 : cy;
+      const t = W.tf; t.x = cx - (cx - t.x) * f; t.y = cy - (cy - t.y) * f; t.s *= f; draw();
+    };
+    const nudgeOnce = (dx, dy) => {
+      if (!W.sel) return false;
+      const f = cfg.free[W.sel.ai], p = f && f.pts[W.sel.pi];
+      if (!p) return false;
+      if (!W.nudge || W.nudge.f !== f || W.nudge.pi !== W.sel.pi) { pushUndo(f, W.sel.pi, p); W.nudge = { f, pi: W.sel.pi }; }
+      p.x += dx * W.step; p.y += dy * W.step;
+      changed(); renderList(); draw();
+      return true;
+    };
+    main.querySelectorAll('[data-nd]').forEach((b) => {
+      const [dx, dy] = b.dataset.nd.split(',').map(Number);
+      const stop = () => { clearInterval(W.hold); clearTimeout(W.holdT); W.hold = null; };
+      b.onpointerdown = (e) => {
+        e.preventDefault();
+        if (!nudgeOnce(dx, dy)) { alert('Selecione um ponto (toque nele na foto ou nos botões 1, 2, 3).'); return; }
+        W.holdT = setTimeout(() => { W.hold = setInterval(() => nudgeOnce(dx, dy), 70); }, 350);
+      };
+      b.onpointerup = b.onpointerleave = b.onpointercancel = stop;
+    });
+
+    cv.onpointerdown = (e) => {
+      cv.setPointerCapture(e.pointerId);
+      const p = evPos(e);
+      W.ptrs.set(e.pointerId, p);
+      W.nudge = null;
+      if (W.ptrs.size === 2) {
+        const [a, b] = [...W.ptrs.values()];
+        W.drag = null; W.loupe = null;
+        W.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), c: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, tf: { ...W.tf } };
+        return;
+      }
+      const q = toImg(p), hit = hitTest(q, 26);
+      if (hit) {
+        W.sel = hit;
+        W.drag = { pt: hit, prev: { ...cfg.free[hit.ai].pts[hit.pi] }, moved: false };
+        W.loupe = { p, q };
+      } else if (W.adding != null && cfg.free[W.adding] && freeHole(cfg.free[W.adding]) >= 0) {
+        const f = cfg.free[W.adding], pi = freeHole(f);
+        f.pts[pi] = q;
+        W.sel = { ai: W.adding, pi };
+        W.drag = { pt: W.sel, prev: null, moved: true, placed: true };
+        W.loupe = { p, q };
+      } else {
+        W.drag = { pan: p, tf: { ...W.tf } };
+      }
+      renderList(); hint(); draw();
+    };
+    cv.onpointermove = (e) => {
+      if (!W.ptrs.has(e.pointerId)) return;
+      const p = evPos(e);
+      W.ptrs.set(e.pointerId, p);
+      if (W.pinch && W.ptrs.size === 2) {
+        const [a, b] = [...W.ptrs.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y), c = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, t0 = W.pinch.tf, f = d / W.pinch.d;
+        W.tf = { s: t0.s * f, x: c.x - (W.pinch.c.x - t0.x) * f, y: c.y - (W.pinch.c.y - t0.y) * f };
+        draw();
+        return;
+      }
+      if (!W.drag) return;
+      if (W.drag.pan) { W.tf.x = W.drag.tf.x + p.x - W.drag.pan.x; W.tf.y = W.drag.tf.y + p.y - W.drag.pan.y; }
+      else if (W.drag.pt) {
+        const q = toImg(p), f = cfg.free[W.drag.pt.ai];
+        if (!f) return;
+        f.pts[W.drag.pt.pi] = q; W.drag.moved = true; W.loupe = { p, q };
+      }
+      draw();
+    };
+    const up = (e) => {
+      W.ptrs.delete(e.pointerId);
+      if (W.ptrs.size < 2) W.pinch = null;
+      if (W.drag && W.drag.pt) {
+        const f = cfg.free[W.drag.pt.ai];
+        if (f && W.drag.moved) {
+          const cur = f.pts[W.drag.pt.pi];
+          if (W.drag.placed || (W.drag.prev && cur && Math.hypot(cur.x - W.drag.prev.x, cur.y - W.drag.prev.y) > 0.5 / W.tf.s)) pushUndo(f, W.drag.pt.pi, W.drag.prev);
+          if (W.drag.placed && freeHole(f) < 0) W.adding = null;
+          changed();
+        }
+      }
+      W.drag = null; W.loupe = null;
+      renderList(); hint(); draw();
+    };
+    cv.onpointerup = up; cv.onpointercancel = up;
+    window.addEventListener('resize', () => { if (W.alive && W.img) { size(); draw(); } });
+    loadImg(cfg.photo).then((img) => { W.img = img; size(); fit(); renderList(); hint(); draw(); });
+  }
+
+  // Imagem com os ângulos desenhados (para o laudo).
+  async function freeImage(photo, free) {
+    const img = await loadImg(photo);
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    drawFreeAngles(g, free.map(normFree), img.naturalWidth / 650, { labels: true });
+    return c.toDataURL('image/jpeg', 0.85);
+  }
+  // Foto reduzida (lado maior 1800 px) como dataURL.
+  async function shrinkToDataUrl(file, max) {
+    const url = URL.createObjectURL(file);
+    const img = await loadImg(url);
+    const k = Math.min(1, (max || 1800) / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    return c.toDataURL('image/jpeg', 0.88);
   }
 
 

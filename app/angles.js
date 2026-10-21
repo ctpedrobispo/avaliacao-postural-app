@@ -250,6 +250,18 @@
     Object.keys(pts).forEach((k) => { const p = pts[k]; out[k] = { x: p.x * c - p.y * s, y: p.x * s + p.y * c }; });
     return out;
   }
+  // Ângulo livre: '3pt' (ângulo interno com vértice no 2º ponto), 'h' (linha × horizontal) ou 'v' (linha × vertical).
+  function freeValue(f) {
+    const t = f.tipo || '3pt', p = f.pts || [];
+    if (t === '3pt') {
+      if (!p[0] || !p[1] || !p[2]) return null;
+      return { value: angleAt(p[0], p[1], p[2]), text: 'ângulo interno no vértice (2º ponto)' };
+    }
+    if (!p[0] || !p[1]) return null;
+    if (t === 'h') return { value: tilt(p[0], p[1]).angle, text: 'em relação à horizontal' };
+    if (t === 'v') return { value: fromVertical(p[0], p[1]).angle, text: 'em relação à vertical' };
+    return null;
+  }
   // Texto de valor com unidade: graus ou cm.
   function fmtVal(r) { return fmt(r.value) + (r.unit === 'cm' ? ' cm' : '°'); }
 
@@ -343,5 +355,5 @@
     return [p];
   }
 
-  return { fmt, fmtVal, calibFromPoints, rotatePts, tilt, fromVertical, angleAt, signedTurn, kneeFrontal, footRotation, rearfoot, mid, compute, computeView, geometry, VIEWS, METHOD, round1 };
+  return { fmt, fmtVal, freeValue, calibFromPoints, rotatePts, tilt, fromVertical, angleAt, signedTurn, kneeFrontal, footRotation, rearfoot, mid, compute, computeView, geometry, VIEWS, METHOD, round1 };
 });

@@ -58,7 +58,7 @@
   async function build({ a, s, prev, history, perfil, opts, helpers: h }) {
     const tipo = (opts && opts.tipo) || 'tecnico';
     const mask = opts ? opts.mascara !== false : true;
-    return tipo === 'aluno' ? buildAluno({ a, s, perfil, mask, h }) : buildTecnico({ a, s, prev, history: history || [a], perfil, mask, h });
+    return tipo === 'aluno' ? buildAluno({ a, s, perfil, mask, h }) : buildTecnico({ a, s, prev, history: history || [a], perfil, mask, fotosMov: !!(opts && opts.fotosMov), h });
   }
 
   // ---------- Relatório do aluno ----------
@@ -91,7 +91,7 @@
   }
 
   // ---------- Registro técnico ----------
-  async function buildTecnico({ a, s, prev, history, perfil, mask, h }) {
+  async function buildTecnico({ a, s, prev, history, perfil, mask, fotosMov, h }) {
     const { esc, fmtDate } = h;
     const groups = h.allResults(a);
     const imc = s.altura && s.peso ? (+s.peso / Math.pow(+s.altura / 100, 2)).toFixed(1) : '';
@@ -131,7 +131,7 @@
         <div><table><tr><th>Código</th><th>Medida</th><th>Valor</th><th>Descrição</th></tr>
         ${g.res.map((r) => `<tr><td>${r.code}</td><td>${esc(r.label)}</td><td><b>${Angles.fmtVal(r)}</b></td><td>${esc(r.text)}</td></tr>`).join('') || '<tr><td colspan="4">Sem medidas completas.</td></tr>'}
         </table>
-        ${v.free.length ? `<p class="note"><b>Ângulos livres:</b> ${v.free.map((f) => `${esc(f.label)} ${Angles.fmt(Angles.angleAt(f.pts[0], f.pts[1], f.pts[2]))}°`).join(' · ')}</p>` : ''}
+        ${v.free.some((f) => Angles.freeValue(f)) ? `<p class="note"><b>Ângulos livres:</b> ${v.free.filter((f) => Angles.freeValue(f)).map((f) => `${esc(f.label)} ${Angles.fmt(Angles.freeValue(f).value)}°`).join(' · ')}</p>` : ''}
         ${v.facing ? `<p class="note">Aluno olhando para a ${v.facing === 'dir' ? 'direita' : 'esquerda'} da foto.</p>` : ''}
         </div></div>
         <div class="crops">${crops.map((c) => `<div class="crop"><div><b>${c.m.code}</b> · ${Angles.fmtVal(c.r)}</div><img src="${c.src}" alt=""><div>${esc(c.m.label)}</div></div>`).join('')}</div>
@@ -141,7 +141,14 @@
 
     // Testes de movimento
     const mov = typeof Mov !== 'undefined' ? Mov.summarize(a.mov) : { tests: [], metrics: [] };
-    if (mov.tests.length) {
+    const testNome = (id) => (typeof Mov !== 'undefined' ? (Mov.TESTS.find((t) => t.id === id) || { nome: id }).nome : id);
+    const fotosAng = [];
+    Object.entries((a.mov && a.mov.fotos) || {}).forEach(([tid, L]) => (L || []).forEach((f) => {
+      const vals = (f.free || []).map((x) => ({ x, fv: Angles.freeValue(x) })).filter((o) => o.fv);
+      if (vals.length) fotosAng.push({ tid, f, vals });
+    }));
+    if (fotosMov) for (const fa of fotosAng) fa.img = await h.freeImage(fa.f.photo, fa.f.free);
+    if (mov.tests.length || fotosAng.length) {
       const pm = typeof Mov !== 'undefined' && prev ? Mov.summarize(prev.mov) : { metrics: [] };
       const cmp = mov.metrics.map((m) => {
         const o = pm.metrics.find((x) => x.key === m.key);
@@ -150,6 +157,10 @@
       html += `<div class="page">${head}<h2>Testes de movimento</h2>
         <p class="note">Observação visual e medidas simples, sem escala validada própria e sem diagnóstico. Os termos descrevem o que foi visto durante o movimento.</p>
         ${mov.tests.map((t) => `<h3>${esc(t.nome)}</h3><ul>${t.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`).join('')}
+        ${fotosAng.length ? `<h3>Ângulos medidos nas fotos dos testes</h3><table><tr><th>Teste</th><th>Foto</th><th>Medida</th><th>Valor</th><th>Tipo</th></tr>
+          ${fotosAng.map((fa) => fa.vals.map((o) => `<tr><td>${esc(testNome(fa.tid))}</td><td>${esc(fa.f.nome)}</td><td>${esc(o.x.label)}</td><td><b>${Angles.fmt(o.fv.value)}°</b></td><td>${esc(o.fv.text)}</td></tr>`).join('')).join('')}</table>
+          <p class="note">Ângulos de foto: medidas de imagem bidimensional, sujeitas a erro de marcação e de perspectiva. Descrevem o quadro fotografado, não o movimento inteiro.</p>` : ''}
+        ${fotosMov && fotosAng.length ? `<div class="crops" style="grid-template-columns:repeat(2,1fr)">${fotosAng.map((fa) => `<div class="crop"><img src="${fa.img}" alt=""><div><b>${esc(testNome(fa.tid))}</b> · ${esc(fa.f.nome)}</div></div>`).join('')}</div>` : ''}
         ${cmp ? `<h3>Comparação com ${fmtDate(prev.data)}</h3><table><tr><th>Medida</th><th>Anterior</th><th>Atual</th></tr>${cmp}</table><p class="note">Sem erro de medida informado para estes testes: a comparação é descritiva.</p>` : ''}
       </div>`;
     }
