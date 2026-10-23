@@ -200,6 +200,7 @@
       { code: codePrefix + '9', label: 'Deslocamento da cabeça (trago) em relação ao acrômio (cm, complementar)', type: 'offset', pts: ['tra', 'acr'], names: ['trago', 'acrômio'] },
       { code: codePrefix + '10', label: 'Deslocamento do acrômio em relação ao trocânter (cm, complementar)', type: 'offset', pts: ['acr', 'tro'], names: ['acrômio', 'trocânter'] },
       { code: codePrefix + '11', label: 'Deslocamento do trocânter em relação ao maléolo (cm, complementar)', type: 'offset', pts: ['tro', 'mal'], names: ['trocânter', 'maléolo lateral'] },
+      { code: codePrefix + '12', label: 'Ângulo trocânter–joelho–maléolo (complementar)', type: 'included', pts: ['tro', 'joe', 'mal'] },
     ],
   });
   // Na lateral direita a câmera vê o lado direito: o aluno olha para a direita da foto.
@@ -226,6 +227,7 @@
     head: 'Linha C7–trago em relação à vertical (convenção APECS). O ângulo craniovertebral é o complemento, medido em relação à horizontal.',
     pelvisSag: 'Linha EIAS–EIPS em relação à horizontal da foto.',
     free: 'Ângulo interno entre os três pontos marcados.',
+    included: 'Ângulo interno no joelho entre as linhas trocânter–joelho e joelho–maléolo. Isolado, não diferencia flexão de hiperextensão.',
     cva: 'Ângulo da linha C7–trago em relação à horizontal (ângulo craniovertebral).',
     offset: 'Distância horizontal entre os dois marcos (ou pontos médios), convertida em cm pela escala da calibração. Só existe com a foto calibrada.',
   };
@@ -327,6 +329,9 @@
       if (Math.abs(dx) < 0.05) out.text = n0 + ' e ' + n1 + ' alinhados na foto';
       else if (ctx.view === 'latD' || ctx.view === 'latE') out.text = n0 + (dx * facingSign > 0 ? ' à frente de ' : ' atrás de ') + n1;
       else out.text = n0 + ' desviado para a ' + ((dx > 0) === (ctx.view === 'ant') ? 'esquerda' : 'direita') + ' do aluno, em relação a ' + n1;
+    } else if (m.type === 'included') {
+      out.value = angleAt(p[0], p[1], p[2]);
+      out.text = 'ângulo incluído no joelho; não diferencia flexão de hiperextensão';
     } else if (m.type === 'free') {
       out.value = angleAt(p[0], p[1], p[2]);
       out.text = 'ângulo livre';

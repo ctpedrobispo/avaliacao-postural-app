@@ -17,6 +17,8 @@
       campos: [
         { k: 'rep', t: 'num', label: 'Repetições observadas' },
         { k: 'calcado', t: 'sel', label: 'Calçado', opts: ['', 'Descalço', 'Calçado'] },
+        { k: 'base', t: 'txt', label: 'Base: largura e rotação dos pés' },
+        { k: 'carga', t: 'txt', label: 'Carga e implemento (ex.: sem carga, bastão)' },
         { g: 'Vista anterior' },
         { k: 'pe_fora', t: 'bi', label: 'Pé: ponta voltada para fora' },
         { k: 'calc_sobe', t: 'bi', label: 'Calcanhar: sai do chão' },
@@ -69,6 +71,8 @@
       campos: [
         { k: 'quadril', t: 'n2', label: 'Ângulo do quadril (coxa em relação à horizontal)', unit: '°' },
         { k: 'joelho', t: 'n2', label: 'Ângulo do joelho', unit: '°' },
+        { k: 'ctrl_pelve', t: 'sel', label: 'Controle da pelve durante o teste', opts: ['', 'Controlada e verificada', 'Não controlada', 'Não verificada'] },
+        { k: 'instr', t: 'txt', label: 'Instrumento e convenção do ângulo (ex.: goniômetro; 0° = coxa horizontal)' },
         { k: 'coxa_alta', t: 'bi', label: 'Coxa: não encosta na maca' },
         { k: 'abd', t: 'bi', label: 'Quadril: abdução da coxa' },
         { k: 'rot', t: 'bi', label: 'Perna: rotação externa' },
@@ -153,6 +157,7 @@
           }
         }
       });
+      if (t.id === 'thomas' && d.quadril && (num(d.quadril.D) != null || num(d.quadril.E) != null) && d.ctrl_pelve !== 'Controlada e verificada') lines.push('Controle da pelve não confirmado: a leitura quantitativa da extensão do quadril é limitada.');
       if (d.obs && String(d.obs).trim()) lines.push('Observação: ' + String(d.obs).trim());
       if (lines.length) out.push({ id: t.id, nome: t.nome, lines });
     });

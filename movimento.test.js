@@ -47,3 +47,16 @@ test('modelos de medida por teste: tipos, pontos nomeados e sem termos de diagn�
     });
   }));
 });
+
+test('Thomas: sem controle da pelve confirmado, o resumo avisa que a leitura é limitada', () => {
+  const base = { t: { thomas: { quadril: { D: '10', E: '5' } } } };
+  const sem = Mov.summarize(base).tests.find((t) => t.id === 'thomas');
+  assert.ok(sem.lines.some((l) => /Controle da pelve não confirmado/.test(l)));
+  const com = Mov.summarize({ t: { thomas: { quadril: { D: '10', E: '5' }, ctrl_pelve: 'Controlada e verificada' } } }).tests.find((t) => t.id === 'thomas');
+  assert.ok(!com.lines.some((l) => /não confirmado/.test(l)));
+});
+
+test('agachamento overhead registra base e carga', () => {
+  const r = Mov.summarize({ t: { ohs: { base: 'Largura dos ombros, pés paralelos', carga: 'Bastão' } } }).tests.find((t) => t.id === 'ohs');
+  assert.ok(r.lines.some((l) => /Base/.test(l)) && r.lines.some((l) => /Carga/.test(l)));
+});

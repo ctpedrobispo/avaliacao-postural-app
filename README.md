@@ -66,6 +66,19 @@ A avaliação ficou separada em modos, cada um com a sua tela cheia (foto e pouc
 - O laudo técnico registra que os pontos foram sugeridos automaticamente e conferidos e ajustados pelo avaliador.
 - **Limites:** roupa larga, foto sem os pés, objetos na frente do corpo e lado oculto nas laterais pioram a sugestão. **PENDENTE DE VALIDAÇÃO:** quanto as sugestões diferem da marcação manual do Pedro em fotos reais de alunos; conferir também a licença do modelo antes de divulgar o app a terceiros.
 
+## Base de regras v4.0 e laudo (v12, 23/10/2026)
+
+Do arquivo `Base_Regras_App_Postural_v4_0.json` (proposta em revisão profissional), o app absorveu só o que não alonga o laudo:
+
+- **Registro técnico em uma linha** no laudo técnico: versão do app, versão da base de regras e origem dos pontos por vista (sugeridos automaticamente e ajustados, ou manuais).
+- **Limites da avaliação** de 7 para 5 frases (juntando as repetidas). O laudo do aluno não mudou.
+- **Thomas modificado:** campos de controle da pelve e de instrumento/convenção do ângulo. Sem controle da pelve confirmado, o resumo avisa que a leitura quantitativa da extensão do quadril é limitada.
+- **Agachamento overhead:** campos de base (largura e rotação dos pés) e de carga/implemento.
+- **Laterais:** medida complementar "Ângulo trocânter–joelho–maléolo" (C12 e D12), com o aviso de que isolado não diferencia flexão de hiperextensão.
+- **Aviso de termos:** passou a incluir prever lesão, músculo fraco ou encurtado, corte universal, diagnóstico funcional e "normal".
+- **Fontes:** as 11 fontes da base ficam na tela Referências (como contexto, não como ponto de corte) e não entram no laudo.
+- **Não absorvido por ora:** códigos PB-* (o app mantém A3, B3, C8...), escápulas, FPI-6 (exame com as mãos), afundo, projeção frontal dinâmica e tabelas normativas do joelho na parede. O erro técnico de medida (TEM) do app, vindo da repetição da marcação, não equivale à menor mudança detectável (MDC) de teste-reteste.
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:

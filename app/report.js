@@ -8,12 +8,10 @@
 
   const LIMITACOES = [
     'A fotografia registra a postura adotada naquele momento, em apoio estático. Não representa automaticamente o comportamento durante movimento, corrida ou exercício.',
-    'Os ângulos são medidas de imagem bidimensional, sujeitas a erro de marcação, posicionamento, perspectiva e roupa. Não equivalem a eixo mecânico radiográfico.',
-    'Os achados não estabelecem diagnóstico, causa de dor, fraqueza, encurtamento ou risco individual de lesão.',
-    'Não existe uma escala angular única para o corpo todo. Cada medida é interpretada pela sua própria referência; sem referência, como valor contínuo.',
+    'Os ângulos são medidas de imagem bidimensional, sujeitas a erro de marcação, posicionamento, perspectiva e roupa. Medidas em cm só existem em fotos calibradas e valem para o plano da calibração; o app não corrige rotação do aluno ou da câmera.',
+    'Os achados não estabelecem diagnóstico, causa de dor, fraqueza, encurtamento ou risco individual de lesão, e orientam o treino apenas combinados com movimento, sintomas, tarefa e objetivo.',
+    'Não existe escala angular única para o corpo todo: cada medida é interpretada pela sua referência; sem referência, como valor contínuo.',
     'Comparações entre avaliações só são válidas em condições de aquisição equivalentes e devem considerar o erro de medida.',
-    'Achados posturais orientam o treino apenas quando combinados com movimento, sintomas, tarefa e objetivo do aluno.',
-    'Medidas em cm só existem em fotos calibradas e valem para o plano da calibração. O app não corrige rotação do aluno ou da câmera em torno do eixo vertical nem distorção de perspectiva.',
   ];
   const LIMITES_ALUNO = [
     'As fotos mostram a sua postura em um momento. Não dizem como você se move nem se há doença.',
@@ -48,6 +46,20 @@
     ? 'Marcações conferidas e validadas pelo avaliador em ' + new Date(a.validado.em).toLocaleString('pt-BR') + '.'
     : 'Marcações não validadas pelo avaliador.');
   const consentTxt = (s, h) => (s.consent && s.consent.ok ? 'Consentimento de uso de imagem registrado em ' + h.fmtDate(s.consent.data) + '.' : 'Consentimento de uso de imagem não registrado.');
+
+  const APP_VERSAO = '12';
+  const REGRAS_VERSAO = '4.0 (em revisão profissional)';
+  // Origem dos pontos, versão do app e das regras: uma linha só, para o laudo continuar curto.
+  function fichaTecnica(a) {
+    const nome = (k) => Angles.VIEWS[k].label.split(' (')[0].toLowerCase();
+    const vs = Object.entries(a.views).filter(([, v]) => v.photo);
+    const auto = vs.filter(([, v]) => v.auto).map(([k]) => nome(k));
+    const man = vs.filter(([, v]) => !v.auto && Object.keys(v.pts || {}).length).map(([k]) => nome(k));
+    const pontos = auto.length
+      ? 'pontos sugeridos automaticamente no aparelho e ajustados pelo avaliador (' + auto.join(', ') + ')' + (man.length ? '; marcação manual (' + man.join(', ') + ')' : '') + '. Pontos de osso fino partem de aproximação conferida pelo avaliador'
+      : 'pontos marcados manualmente pelo avaliador';
+    return 'aplicativo Avaliação Postural v' + APP_VERSAO + ' · base de regras v' + REGRAS_VERSAO + ' · ' + pontos + '.';
+  }
 
   function header(a, perfil, h, titulo, sub) {
     return `<div class="brandbar"><img src="logo-ct.png" alt="CT Pedro Bispo"><img src="logo-correplus.webp" alt="Corre+ Assessoria para Corredores"></div>
@@ -109,7 +121,6 @@
       <h2>Condições de aquisição</h2>
       <table>${h.CONDICOES.filter(([k]) => a.condicoes[k]).map(([k, l]) => `<tr><th style="width:35%">${l}</th><td>${esc(a.condicoes[k])}</td></tr>`).join('') || '<tr><td>Não registradas.</td></tr>'}</table>
       <p class="note"><b>Checklist de captura:</b> ${chk} de ${h.CHECKLIST.length} itens confirmados.${naoChk.length && chk ? ' Não confirmados: ' + esc(naoChk.map(([, l]) => l).join('; ')) + '.' : ''}</p>
-      ${Object.values(a.views).some((x) => x.auto) ? '<p class="note"><b>Marcação:</b> os pontos foram sugeridos por detecção automática no aparelho e conferidos e ajustados pelo avaliador. Pontos de osso fino (acrômio, EIAS, EIPS, C7 e axila) partem de aproximações e dependem da conferência.</p>' : ''}
       ${cnotes.length ? `<p class="note"><b>Calibração e captura:</b></p><ul class="note">${cnotes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
       ${a.observacao ? `<h2>Observação do avaliador</h2><p>${esc(a.observacao)}</p>` : ''}
       ${a.sintomas ? `<h2>Sintomas e dor relatados</h2><p>${esc(a.sintomas)}</p>` : ''}
@@ -221,6 +232,7 @@
       ${a.linguagemSimples ? `<h2>Em linguagem simples</h2><p>${esc(a.linguagemSimples)}</p>` : ''}
       <h2>Limites desta avaliação</h2><ul class="note">${LIMITACOES.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
       <p class="note">${esc(consentTxt(s, h))} ${esc(validacaoTxt(a, h))}</p>
+      <p class="note"><b>Registro técnico:</b> ${esc(fichaTecnica(a))}</p>
       ${credenciais(perfil, esc)}
     </div>`;
     return html;

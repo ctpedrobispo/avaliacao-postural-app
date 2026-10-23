@@ -57,7 +57,7 @@
     'D — dificuldade só sob carga ou fadiga: registrar a condição e progredir',
     'E — dor ou perda de função: avaliar encaminhamento',
   ];
-  const AVOID_TERMS = /valgo|varo|genu|escoliose|hiperlordose|hipercifose|retificaç|pé plano|pe plano|pé cavo|hiperprona|encurtad|fraqueza|risco de lesão|palmilha/i;
+  const AVOID_TERMS = /prever les|prevê les|previsão de les|músculo (?:fraco|encurtado)|corte universal|diagnóstico funcional|\bnormal\b|valgo|varo|genu|escoliose|hiperlordose|hipercifose|retificaç|pé plano|pe plano|pé cavo|hiperprona|encurtad|fraqueza|risco de lesão|palmilha/i;
 
   const CONDICOES = [
     ['camera', 'Câmera / aparelho'], ['lente', 'Lente / zoom'], ['distancia', 'Distância câmera–aluno (m)'],
@@ -361,14 +361,14 @@
     if ($('#recrop')) $('#recrop').onclick = () => {
       if ((Object.keys(v.pts).length || v.calib) && !confirm('Cortar ou girar a foto apaga os pontos e a calibração desta vista. Continuar?')) return;
       openCrop(v.photo, async (out) => {
-        v.photo = out; v.pts = {}; v.pts2 = {}; v.free = []; v.plumbX = null; v.calib = null;
+        v.photo = out; v.pts = {}; v.pts2 = {}; v.auto = false; v.free = []; v.plumbX = null; v.calib = null;
         invalidate(); await DB.put('assessments', ED.a); renderTab(key);
       });
     };
     if (def.defaultFacing) $('#facing').onchange = (e) => { v.facing = e.target.value; invalidate(); saveSoon(); drawPreview(key); };
     $('#mk1').onclick = () => openMarker(key, 1);
     $('#mk2').onclick = () => openMarker(key, 2);
-    $('#mkclr').onclick = () => { if (!confirm('Apagar os pontos da marcação 1 e da marcação 2 desta vista?')) return; v.pts = {}; v.pts2 = {}; invalidate(); saveSoon(); renderTab(key); };
+    $('#mkclr').onclick = () => { if (!confirm('Apagar os pontos da marcação 1 e da marcação 2 desta vista?')) return; v.pts = {}; v.pts2 = {}; v.auto = false; invalidate(); saveSoon(); renderTab(key); };
     $('#cal').onclick = () => openCalib(key);
     if ($('#calrm')) $('#calrm').onclick = () => { v.calib = null; invalidate(); saveSoon(); renderTab(key); };
     if ($('#calapply')) $('#calapply').onchange = (e) => { v.calib.apply = e.target.checked; invalidate(); saveSoon(); drawPreview(key); };
@@ -1961,6 +1961,21 @@
   }
 
   // ---------- Referências ----------
+  // Fontes citadas na base de regras v4.0 (proposta em revisão profissional). Dão contexto; não são pontos de corte.
+  const FONTES = [
+    ["E01", "Postural Evaluation in Young Healthy Adults through a Digital and Reproducible Method", "2022", "https://pmc.ncbi.nlm.nih.gov/articles/PMC9680464/", "Propriedades de medidas APECS; não transferir para app novo."],
+    ["E02", "Photogrammetry-based smartphone applications for spinal posture assessment", "2026", "https://www.nature.com/articles/s41598-025-32708-1.pdf", "Síntese de propriedades de medidas; não estabelece corte universal."],
+    ["E03", "International normative values for the weight-bearing lunge test across age and sex in 899 healthy adults", "2026", "https://pubmed.ncbi.nlm.nih.gov/41723909/", "Normas em cm estratificadas por idade/sexo; validar protocolo antes de importar tabelas."],
+    ["E04", "Reliability and validity of a weight-bearing measure of ankle dorsiflexion range of motion", "2012", "https://pubmed.ncbi.nlm.nih.gov/23997389/", "MDC em protocolo/população com disfunção do tornozelo."],
+    ["E05", "Reliability and minimal detectable change of the weight-bearing lunge test", "2015", "https://pubmed.ncbi.nlm.nih.gov/25704110/", "MDCs médias de estudos diferentes; não atribuir ao novo app."],
+    ["E06", "The modified Thomas test is not a valid measure of hip extension unless pelvic tilt is controlled", "2016", "https://pmc.ncbi.nlm.nih.gov/articles/PMC4991856/", "Validade e controle da pelve; não identifica tecido isolado."],
+    ["E07", "Can a Standardized Visual Assessment of Squatting Technique and Core Stability Predict Injury?", "2020", "https://pubmed.ncbi.nlm.nih.gov/31490423/", "Limitações da previsão de lesão em atletas gaélicos masculinos."],
+    ["E08", "Patellofemoral Pain Clinical Practice Guidelines - Decision Tree", "2019", "https://www.orthopt.org/uploads/content_files/files/Patellofemoral%20Knee%20Pain%20Decision%20Tree.pdf", "Critérios contextuais; não aplicar ao overhead squat nem à população geral."],
+    ["E09", "Foot Posture Index Datasheet - Anthony Redmond", "", "https://researchers-admin.westernsydney.edu.au/ws/portalfiles/portal/94780445/uws_2511.pdf", "Categorias do FPI-6 completo; exige exame incluindo palpação."],
+    ["E10", "No consensus on causality of spine postures or physical exposure and low back pain", "2020", "https://pubmed.ncbi.nlm.nih.gov/31451200/", "Associação não explica causalidade individual de lombalgia."],
+    ["E11", "Postural asymmetry in low back pain", "2025", "https://pubmed.ncbi.nlm.nih.gov/39166267/", "Diferenças médias e heterogeneidade; não corte individual."]
+  ];
+
   function showRefs() {
     ED.active = false;
     setHeader('Referências e alvos', showHome);
@@ -1982,7 +1997,10 @@
       <tbody id="rows">${rows.map(rowHtml).join('')}</tbody></table></div>
       <div class="row" style="margin-top:10px"><button id="add">+ Adicionar faixa</button><button class="primary" id="save">Salvar</button></div>
       <h3>Avaliador</h3><div class="grid2"><div><label>Nome</label><input id="pnome" value="${esc(state.perfil.nome)}"></div><div><label>Registro</label><input id="pcref" value="${esc(state.perfil.cref)}"></div></div>
-      <ul class="muted">${Object.values(CLASSES).map((c) => `<li>${c}</li>`).join('')}</ul></div>`;
+      <ul class="muted">${Object.values(CLASSES).map((c) => `<li>${c}</li>`).join('')}</ul>
+      <details style="margin-top:12px"><summary><b>Fontes da base de regras v4.0 (${FONTES.length})</b></summary>
+        <p class="muted">Proposta em revisão profissional. As fontes dão contexto e limites; não são pontos de corte e não entram no laudo.</p>
+        <ul class="muted">${FONTES.map(([id, t, ano, url, esc2]) => `<li><b>${id}</b> · ${esc(t)}${ano ? ' (' + esc(ano) + ')' : ''}<br>${esc(esc2)}<br><a href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a></li>`).join('')}</ul></details></div>`;
     const collect = () => [...main.querySelectorAll('#rows tr')].map((tr) => {
       const o = {};
       tr.querySelectorAll('[data-k]').forEach((el) => (o[el.dataset.k] = el.value.replace(',', '.').trim()));

@@ -162,3 +162,13 @@ test('ângulo livre: 3 pontos, linha × horizontal, linha × vertical e incomple
   assert.equal(A.freeValue({ tipo: '3pt', pts: [{ x: 1, y: 1 }, null, { x: 2, y: 2 }] }), null);
   assert.equal(A.freeValue({ tipo: 'h', pts: [{ x: 1, y: 1 }] }), null);
 });
+
+test('lateral: ângulo incluído trocânter–joelho–maléolo (complementar)', () => {
+  const pts = { tro: { x: 100, y: 100 }, joe: { x: 100, y: 200 }, mal: { x: 100, y: 300 } };
+  ['latD', 'latE'].forEach((k) => {
+    const r = A.computeView(k, pts, 'dir', null).find((x) => /trocânter–joelho–maléolo/.test(x.label));
+    assert.ok(r, k);
+    assert.equal(r.value, 180);
+    assert.ok(/não diferencia flexão de hiperextensão/.test(r.text));
+  });
+});
