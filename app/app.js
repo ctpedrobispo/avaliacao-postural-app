@@ -247,6 +247,7 @@
     rapida: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="6" width="36" height="52" rx="5"/><circle cx="32" cy="18" r="4"/><path d="M32 22v14M24 27h16M32 36l-6 14M32 36l6 14"/><circle cx="32" cy="29" r="9" stroke-dasharray="3 4"/></svg>',
     angulos: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 50L40 20M12 50h42"/><path d="M26 50a14 14 0 0 0-6-12" /><circle cx="12" cy="50" r="3" fill="currentColor"/><circle cx="40" cy="20" r="3" fill="currentColor"/><circle cx="54" cy="50" r="3" fill="currentColor"/></svg>',
     movimento: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="26" cy="12" r="5"/><path d="M26 17l6 14 14 4M32 31l-8 8 10 6M20 22l-8-10M36 22l8-10M8 56h48"/></svg>',
+    importar: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="12" width="48" height="32" rx="4"/><circle cx="22" cy="24" r="4"/><path d="M8 38l14-10 10 8 8-6 16 12M32 50v8M26 54l6 6 6-6"/></svg>',
     resultados: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 54V10M10 54h46M18 44l12-14 8 8 14-18"/></svg>',
     evolucao: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="12" width="20" height="40" rx="3"/><rect x="36" y="12" width="20" height="40" rx="3"/><path d="M30 32h4M32 30l2 2-2 2"/></svg>',
     ficha: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="8" width="40" height="48" rx="4"/><path d="M20 22h24M20 32h24M20 42h14"/></svg>',
@@ -263,6 +264,7 @@
       ['postura', 'Postura completa', `${fotos} de 4 vistas com foto · ${marcadas} marcadas`, () => renderTab('ant')],
       ['rapida', 'Análise rápida', 'Uma vista, em poucos toques', startQuick],
       ['angulos', 'Amplitude e ângulos', nLiv ? `${nLiv} foto(s) com ângulos livres` : 'Meça qualquer ângulo em qualquer foto', () => renderTab('livres')],
+      ['importar', 'Importar fotos do aluno', 'Até 4 fotos de uma vez, uma por vista', importFotos],
       ['movimento', 'Testes de movimento', nMov ? `${nMov} registro(s)` : 'Agachamento overhead, step-down e outros', () => renderTab('mov')],
     ];
     const small = [
@@ -492,7 +494,7 @@
       paint(g, S.tf, false);
       if (S.loupe) {
         const R = Math.min(80, S.w / 5), Z = 3, { p, q } = S.loupe;
-        const cx = p.x < S.w / 2 ? S.w - R - 12 : R + 12, cy = p.y < R * 2 + 40 ? S.h - R - 12 : R + 12;
+        const cx = R + 12, cy = R + 12; // sempre no canto superior esquerdo, onde não há botão nem figura
         g.save(); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.clip();
         g.fillStyle = '#000'; g.fillRect(cx - R, cy - R, 2 * R, 2 * R);
         const s = S.tf.s * Z;
@@ -604,7 +606,7 @@
         leftHtml: fsBtn('grid', ICON.grid, 'Grade') + fsBtn('contrast', ICON.contrast, 'Contraste'),
         rightHtml: fsBtn('move', ICON.move, 'Mover') + fsBtn('list', ICON.list, 'Pontos') + fsBtn('fit', ICON.fit, 'Ajustar'),
         bottomHtml: fsBtn('undo', ICON.back, 'Desfazer') + fsBtn('next', ICON.pin, 'Próximo', 'primary') + fsBtn('redo', ICON.redo, 'Refazer ponto'),
-        drawOverlay: (c, tf) => drawView(c, img, key, v, tf, 1.3, { noImage: true, grid: false, style: 'plain', noLabels: true, noFree: true, sel: cur, set }),
+        drawOverlay: (c, tf) => drawView(c, img, key, v, tf, 1, { noImage: true, grid: false, style: 'plain', noLabels: true, noFree: true, sel: cur, set }),
         hit: (q, r) => { const p = P()[cur]; return p && Math.hypot(p.x - q.x, p.y - q.y) < r ? cur : null; },
         start: (id) => { hist.push({ id, prev: { ...P()[id] } }); },
         place: (q) => { hist.push({ id: cur, prev: P()[cur] ? { ...P()[cur] } : null }); P()[cur] = q; return cur; },
@@ -853,8 +855,8 @@
         }
         c.lineCap = 'butt';
       };
-      (def.skeleton || []).forEach((ids) => seg(ids, 'rgba(255,255,255,0.7)', 2.5));
-      (def.legs || []).forEach((ids) => seg(ids, 'rgba(31,120,209,0.85)', 2.5));
+      (def.skeleton || []).forEach((ids) => seg(ids, 'rgba(255,255,255,0.7)', 1.8));
+      (def.legs || []).forEach((ids) => seg(ids, 'rgba(31,120,209,0.85)', 1.8));
     }
     const results = Angles.computeView(key, P, v.facing, v.calib);
     def.measures.forEach((m) => {
@@ -961,17 +963,17 @@
 
   function dot(c, p, u, color, sel) {
     c.beginPath();
-    c.arc(p.x, p.y, 6 * u, 0, Math.PI * 2);
+    c.arc(p.x, p.y, 3 * u, 0, Math.PI * 2);
     c.fillStyle = '#fff';
     c.fill();
-    c.lineWidth = 2.5 * u;
+    c.lineWidth = 1.5 * u;
     c.strokeStyle = color;
     c.stroke();
     if (sel) {
       c.beginPath();
-      c.arc(p.x, p.y, 13 * u, 0, Math.PI * 2);
+      c.arc(p.x, p.y, 7 * u, 0, Math.PI * 2);
       c.strokeStyle = '#e53935';
-      c.lineWidth = 2.5 * u;
+      c.lineWidth = 1.5 * u;
       c.stroke();
     }
   }
@@ -1080,6 +1082,7 @@
       <div class="card"><h2>Contexto</h2>
         <label>Sintomas e dor relatados</label><textarea data-f="sintomas">${esc(a.sintomas)}</textarea>
         <label>Movimento e testes complementares (agachamento, step-down, corrida, força, mobilidade)</label><textarea data-f="movimento">${esc(a.movimento)}</textarea>
+        <div class="row" style="margin-top:8px"><button id="draft">Gerar rascunho dos textos</button><span class="muted">Montado por regras com os seus números, sem IA. Leia e edite antes de usar.</span></div>
         <label>Observação do avaliador (aparece no laudo)</label><textarea data-f="observacao">${esc(a.observacao)}</textarea>
         <p class="warn" id="avoid" hidden>Este texto usa um termo que o manual pede para evitar a partir de foto (ex.: valgo, varo, pé plano, encurtamento, fraqueza, risco de lesão). Prefira descrever o que foi observado, por exemplo "projeção medial do joelho em apoio estático".</p>
         <label>Versão em linguagem simples para o aluno (opcional)</label><textarea data-f="linguagemSimples">${esc(a.linguagemSimples)}</textarea>
@@ -1099,6 +1102,18 @@
     main.querySelectorAll('[data-f]').forEach((el) => (el.oninput = () => { a[el.dataset.f] = el.value; saveSoon(); checkAvoid(); }));
     main.querySelectorAll('[data-pr]').forEach((el) => (el[el.tagName === 'SELECT' ? 'onchange' : 'oninput'] = () => { a.prioridades[+el.dataset.pr][el.dataset.k] = el.value; saveSoon(); }));
     checkAvoid();
+    $('#draft').onclick = () => {
+      const d = draftTexts(a);
+      if (!d) return alert('Marque os pontos de pelo menos uma vista antes de gerar o rascunho.');
+      const put = (k, txt, nome) => {
+        if (a[k] && a[k].trim() && !confirm('Já existe texto em "' + nome + '". Substituir pelo rascunho?')) return;
+        a[k] = txt;
+        main.querySelector('[data-f="' + k + '"]').value = txt;
+      };
+      put('observacao', d.obs, 'Observação do avaliador');
+      put('linguagemSimples', d.simples, 'Versão em linguagem simples');
+      saveSoon(); checkAvoid();
+    };
     bindTabs();
   }
 
@@ -1853,6 +1868,64 @@
     return c.toDataURL('image/jpeg', 0.88);
   }
 
+
+  // ---------- Importar as fotos do aluno de uma vez ----------
+  function importFotos() {
+    const sh = showSheet(`<h2>Importar fotos do aluno</h2>
+      <p class="muted">Salve no iPad as fotos recebidas pelo WhatsApp (em Fotos ou Arquivos) e escolha aqui até 4 de uma vez. Confira a vista de cada uma antes de importar.</p>
+      <div class="row"><label class="btn" style="margin:0;color:var(--ink)">Escolher fotos<input type="file" accept="image/*" multiple hidden id="imp-files"></label><button id="imp-x">Cancelar</button></div>
+      <div id="imp-list"></div>
+      <div class="row" id="imp-act" hidden style="margin-top:10px"><button class="primary" id="imp-go">Importar</button></div>`);
+    let files = [];
+    const opts = (sel) => VIEW_KEYS.map((k) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(Angles.VIEWS[k].label)}</option>`).join('') + '<option value="">Não importar</option>';
+    sh.querySelector('#imp-x').onclick = () => sh.close();
+    sh.querySelector('#imp-files').onchange = (e) => {
+      files = [...e.target.files].slice(0, 4);
+      sh.querySelector('#imp-list').innerHTML = files.map((f, i) => `<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:6px 0"><img src="${URL.createObjectURL(f)}" alt="" style="height:64px;border-radius:6px"><div style="flex:1;min-width:150px"><div class="muted" style="font-size:12px;overflow:hidden;text-overflow:ellipsis">${esc(f.name)}</div><select data-imp="${i}">${opts(VIEW_KEYS[i])}</select></div></div>`).join('');
+      sh.querySelector('#imp-act').hidden = !files.length;
+    };
+    sh.querySelector('#imp-go').onclick = async () => {
+      const sel = [...sh.querySelectorAll('[data-imp]')].map((s) => s.value);
+      const used = sel.filter(Boolean);
+      if (!used.length) return alert('Nenhuma foto escolhida para importar.');
+      if (new Set(used).size !== used.length) return alert('Duas fotos estão na mesma vista. Escolha vistas diferentes.');
+      const subs = used.filter((k) => ED.a.views[k].photo).map((k) => Angles.VIEWS[k].label);
+      if (subs.length && !confirm(`Isto substitui a foto (e apaga os pontos e a calibração) de: ${subs.join(', ')}. Continuar?`)) return;
+      for (let i = 0; i < files.length; i++) {
+        if (!sel[i]) continue;
+        const v = ED.a.views[sel[i]];
+        v.photo = await shrinkToDataUrl(files[i], 1800);
+        v.pts = {}; v.pts2 = {}; v.free = []; v.plumbX = null; v.calib = null; v.captureTilt = null;
+      }
+      invalidate();
+      await DB.put('assessments', ED.a);
+      sh.close();
+      renderTab('home');
+    };
+  }
+
+  // ---------- Rascunho do texto do laudo (montado por regras com os seus números, sem IA) ----------
+  function draftTexts(a) {
+    const groups = allResults(a);
+    const vistaSimples = { ant: 'de frente', post: 'de costas', latD: 'de lado (direita)', latE: 'de lado (esquerda)' };
+    const val = (r) => Math.abs(r.signed != null ? r.signed : r.value);
+    const partes = [], simples = [], vistas = [];
+    groups.forEach((g) => {
+      if (!a.views[g.key].photo) return;
+      vistas.push(g.key);
+      const base = g.res.filter((r) => r.unit !== 'cm' && !/complementar/.test(r.label));
+      if (!base.length) return;
+      const fora = base.filter((r) => flagFor(r).cls === 'out');
+      const esc2 = fora.length ? fora : [...base].sort((x, y) => val(y) - val(x)).slice(0, 2);
+      partes.push(`${Angles.VIEWS[g.key].label}: ${esc2.map((r) => `${r.label.toLowerCase()} (${r.code}) ${Angles.fmtVal(r)}, ${r.text}`).join('; ')} [${fora.length ? 'fora da faixa adotada' : 'maiores valores da vista'}].`);
+      simples.push(`${Angles.VIEWS[g.key].label.replace(/\s*\(.*\)/, '')}: ${esc2.map((r) => `${r.label.toLowerCase()} (${r.text})`).join('; ')}`);
+    });
+    if (!partes.length) return null;
+    const semRef = groups.every((g) => g.res.every((r) => flagFor(r).cls === ''));
+    const obs = `Registro fotográfico em apoio estático (${vistas.map((k) => Angles.VIEWS[k].label.toLowerCase()).join(', ')}), em ${fmtDate(a.data)}. ${partes.join(' ')} Os valores descrevem a imagem do dia; não estabelecem diagnóstico, causa de dor nem risco individual de lesão, e a relevância para o treino depende de sintomas, tarefa e objetivo.${semRef ? ' Não há faixa de referência adotada para estas medidas: os valores foram descritos como contínuos.' : ''}`;
+    const sim = `Fizemos fotos suas em pé (${vistas.map((k) => vistaSimples[k]).join(', ')}) para ver como o seu corpo está alinhado. O que mais apareceu nas fotos: ${simples.join('. ')}. Esses números vêm de fotos e têm uma margem de erro: descrevem como você estava na foto, não são diagnóstico e não dizem sozinhos como você se move. Vamos acompanhar nas próximas avaliações e ajustar o treino também pelo que você sente e pelos seus objetivos.`;
+    return { obs, simples: sim };
+  }
 
   // ---------- Referências ----------
   function showRefs() {

@@ -127,7 +127,7 @@ th { color: var(--muted); font-weight: 600; }
 .fs-bottom { background: #111; display: flex; gap: 12px; justify-content: center; align-items: center; padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom)); flex: none; }
 .fs-bottom .fs-btn { min-width: 84px; min-height: 64px; }
 .fs-toast { position: absolute; left: 50%; top: 58px; transform: translateX(-50%); max-width: 80%; background: rgba(0,0,0,.8); color: #fff; padding: 10px 14px; border-radius: 12px; font-size: 14px; text-align: center; z-index: 9; pointer-events: none; }
-.fs-pill { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 330px); background: rgba(0,0,0,.65); color: #fff; padding: 8px 14px; border-radius: 99px; font-size: 14px; text-align: center; z-index: 4; pointer-events: none; }
+.fs-pill { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 460px); background: rgba(0,0,0,.65); color: #fff; padding: 8px 14px; border-radius: 99px; font-size: 14px; text-align: center; z-index: 4; pointer-events: none; }
 .fs-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(380px, 92%); background: var(--card); color: var(--ink); z-index: 8; padding: 12px; overflow: auto; box-shadow: -4px 0 14px rgba(0,0,0,.4); }
 .fs-modal { position: absolute; inset: 0; z-index: 10; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 16px; }
 .fs-modal .box { background: var(--card); color: var(--ink); border-radius: 14px; padding: 16px; width: min(380px, 100%); }
@@ -183,6 +183,7 @@ th { color: var(--muted); font-weight: 600; }
 .fs-done { background: #ff9500; color: #fff; border: 0; border-radius: 99px; min-height: 54px; padding: 0 26px; font-size: 20px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
 .fs-right.low { top: auto; bottom: 14px; transform: none; }
 @media (max-height: 560px) { .fs-type { width: 46px; height: 46px; } .fs-type svg { width: 26px; height: 26px; } .fs-done { min-height: 42px; font-size: 16px; padding: 0 16px; } .fs-types { gap: 6px; } }
+.launch .lcard:last-child:nth-child(odd) { grid-column: 1 / -1; }
 /* Testes de movimento */
 details.card > summary { cursor: pointer; font-size: 17px; }
 .mv-chk { display: flex; gap: 8px; align-items: flex-start; color: var(--ink); font-size: 15px; margin: 6px 0; }

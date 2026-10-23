@@ -49,6 +49,13 @@ A avaliação ficou separada em modos, cada um com a sua tela cheia (foto e pouc
 - **Ângulos livres:** os três tipos (3 pontos, linha × horizontal, linha × vertical) ficam sempre visíveis à direita, em botões redondos (o tipo em uso fica verde), e o botão **Terminar** encerra o ângulo ou fecha a tela.
 - **Modelos de medida por teste** (agachamento overhead, step-down, joelho na parede, Thomas modificado): o botão "Modelo" carrega ângulos sugeridos, com o nome de cada ponto, e o app avança sozinho para o ângulo seguinte. **São sugestões e estão PENDENTES DE VALIDAÇÃO com o manual de movimento**; podem ser renomeadas e apagadas.
 
+## Importar fotos e rascunho dos textos (23/10/2026)
+
+- **Marcação:** o ponto ficou bem menor (e as linhas do esqueleto mais finas). A **lupa fica sempre no canto superior esquerdo**, sem trocar de lado.
+- **Importar fotos do aluno:** cartão no Início; escolhe até 4 fotos de uma vez (salvas antes do WhatsApp em Fotos ou Arquivos) e define a vista de cada uma. Substituir uma foto existente pede confirmação.
+- **Rascunho dos textos:** na Ficha e conduta, o botão "Gerar rascunho" monta a observação e a versão em linguagem simples **por regras, com os seus números, sem IA e sem enviar dados**. Você lê e edita; substituir texto já escrito pede confirmação.
+- **Não feito:** vídeo (retirado desta rodada) e **colocação automática dos pontos por IA no aparelho**, que fica como próxima etapa.
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:
