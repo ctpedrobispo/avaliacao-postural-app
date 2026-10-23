@@ -34,6 +34,14 @@ No laudo, a foto marcada usa o mesmo desenho do APECS: rótulos azuis à esquerd
 - **Ângulos livres (espaço próprio):** o botão "Ângulos livres" abre uma tela só com a foto e os ângulos, separada da marcação postural. Vários ângulos por foto, com nome editável, três tipos (3 pontos, linha × horizontal, linha × vertical), ajuste arrastando ou com as setas (passo de 0,5, 1 ou 3 px, segurando repete), desfazer, apagar ponto e refazer. Funciona nas vistas posturais e em **fotos dos testes de movimento** (agachamento overhead, joelho na parede etc.).
 - **Guia de fotos para o aluno:** texto pronto para compartilhar (WhatsApp), copiar ou imprimir.
 
+## Telas limpas por modo (23/10/2026)
+
+A avaliação ficou separada em modos, cada um com a sua tela cheia (foto e poucos botões flutuantes, no estilo do APECS):
+
+- **Marcação postural:** a aba de cada vista é só um resumo. "Marcar pontos" abre a tela cheia com a foto, o ponto da vez, o nome do ponto e uma miniatura da região (cabeça, pelve…) que pode ser ampliada. Botões: Grade, Contraste, Mover, Pontos (lista), Ajustar, e embaixo Desfazer, Próximo (Pular nos opcionais) e Refazer ponto. Um único "Desfazer" e um único "Refazer ponto": acabaram os botões repetidos.
+- **Calibração**, **Cortar e girar** (girar de 90 em 90°, nivelar de −10° a +10° e cortar) e **Ângulos livres** têm tela cheia própria. A aba **Ângulos livres** mede qualquer foto avulsa; os testes de movimento têm foto e "Medir" no mesmo espaço.
+- **Girar o iPad:** a tela cheia acompanha a janela nos dois sentidos, o menu não some e os botões continuam visíveis.
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:

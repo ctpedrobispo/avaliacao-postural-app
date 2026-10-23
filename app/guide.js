@@ -44,5 +44,31 @@
       <div class="g-txt"><b>${label}</b>${hint ? `<span>${hint}</span>` : ''}${lado ? `<span class="g-side">${lado} · ${naFoto}</span>` : ''}<span class="g-note">Figura ilustrativa</span></div>`;
   }
 
-  root.Guide = { html, has: (view, id) => !!(TABLE[view] || {})[id] };
+  // Miniatura só da região do ponto (como no APECS). big: figura inteira.
+  function thumb(view, id, facing, big) {
+    const pos = (TABLE[view] || {})[id];
+    if (!pos) return '';
+    const lateral = view === 'latD' || view === 'latE', FW = 360, FH = 542;
+    const mirror = lateral && facing === 'esq';
+    const x = mirror ? FW - pos[0] : pos[0], y = pos[1];
+    let vb = [0, 0, FW, FH];
+    if (!big) {
+      const w = 150, h = 150;
+      vb = [Math.max(0, Math.min(FW - w, x - w / 2)), Math.max(0, Math.min(FH - h, y - h / 2)), w, h];
+    }
+    const others = big ? Object.entries(TABLE[view]).filter(([k]) => k !== id).map(([, p]) => `<circle cx="${mirror ? FW - p[0] : p[0]}" cy="${p[1]}" r="3.5" fill="#fff" opacity=".55"/>`).join('') : '';
+    const r = big ? 8 : 7;
+    const mark = `<circle cx="${x}" cy="${y}" r="${r + 8}" fill="none" stroke="#ff3b30" stroke-width="2.5"><animate attributeName="r" values="${r + 3};${r + 14};${r + 3}" dur="1.6s" repeatCount="indefinite"/></circle><circle cx="${x}" cy="${y}" r="${r}" fill="#ff3b30" stroke="#fff" stroke-width="2.5"/>`;
+    return `<svg viewBox="${vb.join(' ')}" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Onde marcar"><g${mirror ? ' transform="translate(360 0) scale(-1 1)"' : ''}><image href="${IMG[view]}" width="360" height="542"/></g>${others}${mark}</svg>`;
+  }
+  // "lado direito do aluno · aparece à ESQUERDA na foto" para pontos pares D/E.
+  function sideText(view, id) {
+    const lateral = view === 'latD' || view === 'latE';
+    if (lateral) return '';
+    const d = /D$/.test(id), e = /E$/.test(id);
+    if (!d && !e) return '';
+    return (d ? 'lado direito do aluno' : 'lado esquerdo do aluno') + ' · aparece à ' + (d === (view === 'ant') ? 'ESQUERDA' : 'DIREITA') + ' na foto';
+  }
+
+  root.Guide = { html, thumb, sideText, has: (view, id) => !!(TABLE[view] || {})[id] };
 })(typeof self !== 'undefined' ? self : this);

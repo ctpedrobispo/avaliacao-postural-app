@@ -141,12 +141,16 @@
 
     // Testes de movimento
     const mov = typeof Mov !== 'undefined' ? Mov.summarize(a.mov) : { tests: [], metrics: [] };
-    const testNome = (id) => (typeof Mov !== 'undefined' ? (Mov.TESTS.find((t) => t.id === id) || { nome: id }).nome : id);
+    const testNome = (id) => (id === 'livres' ? 'Ângulo livre (foto avulsa)' : typeof Mov !== 'undefined' ? (Mov.TESTS.find((t) => t.id === id) || { nome: id }).nome : id);
     const fotosAng = [];
     Object.entries((a.mov && a.mov.fotos) || {}).forEach(([tid, L]) => (L || []).forEach((f) => {
       const vals = (f.free || []).map((x) => ({ x, fv: Angles.freeValue(x) })).filter((o) => o.fv);
       if (vals.length) fotosAng.push({ tid, f, vals });
     }));
+    (a.livres || []).forEach((f) => {
+      const vals = (f.free || []).map((x) => ({ x, fv: Angles.freeValue(x) })).filter((o) => o.fv);
+      if (vals.length) fotosAng.push({ tid: 'livres', f, vals });
+    });
     if (fotosMov) for (const fa of fotosAng) fa.img = await h.freeImage(fa.f.photo, fa.f.free);
     if (mov.tests.length || fotosAng.length) {
       const pm = typeof Mov !== 'undefined' && prev ? Mov.summarize(prev.mov) : { metrics: [] };
@@ -154,7 +158,7 @@
         const o = pm.metrics.find((x) => x.key === m.key);
         return o ? `<tr><td>${esc(m.label)}</td><td>D ${fmtN(o.D)} · E ${fmtN(o.E)} ${esc(m.unit)}</td><td>D ${fmtN(m.D)} · E ${fmtN(m.E)} ${esc(m.unit)}</td></tr>` : '';
       }).join('');
-      html += `<div class="page">${head}<h2>Testes de movimento</h2>
+      html += `<div class="page">${head}<h2>${mov.tests.length ? 'Testes de movimento' : 'Ângulos medidos nas fotos'}</h2>
         <p class="note">Observação visual e medidas simples, sem escala validada própria e sem diagnóstico. Os termos descrevem o que foi visto durante o movimento.</p>
         ${mov.tests.map((t) => `<h3>${esc(t.nome)}</h3><ul>${t.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`).join('')}
         ${fotosAng.length ? `<h3>Ângulos medidos nas fotos dos testes</h3><table><tr><th>Teste</th><th>Foto</th><th>Medida</th><th>Valor</th><th>Tipo</th></tr>

@@ -184,6 +184,7 @@
   // Avaliações antigas não têm os campos novos: completa com padrões.
   function normalize(a) {
     a.checklist = a.checklist || {};
+    a.livres = a.livres || [];
     if (a.mascara === undefined) a.mascara = true;
     a.tipoLaudo = a.tipoLaudo || 'tecnico';
     if (a.validado === undefined) a.validado = null;
@@ -217,7 +218,7 @@
   }
 
   function tabsHtml() {
-    const t = [['ant', 'Anterior'], ['post', 'Posterior'], ['latD', 'Lateral D'], ['latE', 'Lateral E'], ['res', 'Resultados'], ['evol', 'Evolução'], ['mov', 'Movimento'], ['ficha', 'Ficha e conduta'], ['laudo', 'Laudo']];
+    const t = [['ant', 'Anterior'], ['post', 'Posterior'], ['latD', 'Lateral D'], ['latE', 'Lateral E'], ['res', 'Resultados'], ['evol', 'Evolução'], ['mov', 'Movimento'], ['livres', 'Ângulos livres'], ['ficha', 'Ficha e conduta'], ['laudo', 'Laudo']];
     return `<div class="tabs">${t.map(([k, l]) => `<button data-tab="${k}" class="${ED.tab === k ? 'primary' : ''}">${l}</button>`).join('')}</div>`;
   }
 
@@ -231,62 +232,97 @@
     else if (tab === 'res') renderResults();
     else if (tab === 'evol') renderEvol();
     else if (tab === 'mov') renderMov();
+    else if (tab === 'livres') renderLivres();
     else if (tab === 'ficha') renderFicha();
     else renderLaudo();
     bindTabs();
   }
   const bindTabs = () => main.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => renderTab(b.dataset.tab)));
 
+  // ---------- Vista: página de resumo (a marcação acontece em tela cheia) ----------
+  const isOptional = (p) => /^opcional/.test(p[2] || '');
+
   function renderView(key) {
     const def = Angles.VIEWS[key];
     const v = ED.a.views[key];
+    const total = def.points.length;
+    const reqTotal = def.points.filter((p) => !isOptional(p)).length;
+    const done1 = def.points.filter(([id]) => v.pts[id]).length;
+    const req1 = def.points.filter((p) => !isOptional(p) && v.pts[p[0]]).length;
+    const done2 = def.points.filter(([id]) => v.pts2 && v.pts2[id]).length;
+    const fl = (v.free || []).map((f) => ({ f, fv: Angles.freeValue(f) }));
+    const c = v.calib;
     main.innerHTML = `${tabsHtml()}
-      <div class="editor">
-        <div>
-          <div class="tools">
-            <label class="btn" style="margin:0;color:var(--ink)">${v.photo ? 'Trocar foto' : 'Escolher ou tirar foto'}<input type="file" accept="image/*" id="file" hidden></label><button id="cam">Câmera guiada</button>
-            <button id="undo">↶ Desfazer</button><button id="delpt">Apagar ponto</button><button data-tool="mark">Marcar</button><button data-tool="pan">Mover</button><button data-tool="plumb">Fio de prumo</button><button id="open-free" ${v.photo ? '' : 'disabled'}>Ângulos livres</button><button data-tool="calib">Calibrar</button>
-            <button id="zin">+</button><button id="zout">−</button><button id="zfit">Ajustar</button>
-            <button id="tgrid" class="${ED.grid ? 'on' : ''}">Grade</button><button id="tguide" class="${ED.guide ? 'on' : ''}">Guia</button>
+      <div class="viewpage">
+        <div class="card vp-photo">
+          ${v.photo ? '<canvas id="vp-cv"></canvas>' : `<div class="vp-empty">Sem foto da vista ${esc(def.label.toLowerCase())}.<br>Câmera fixa, perpendicular ao aluno, corpo inteiro na foto, pés na base marcada.</div>`}
+          <div class="row" style="margin-top:10px">
+            <label class="btn" style="margin:0;color:var(--ink)">${v.photo ? 'Trocar foto' : 'Escolher ou tirar foto'}<input type="file" accept="image/*" id="file" hidden></label>
+            <button id="cam">Câmera guiada</button>
+            ${v.photo ? '<button id="recrop">Cortar ou girar</button>' : ''}
           </div>
-          <div class="stagewrap"><div class="guide" id="guide" hidden></div><div class="stage" id="stage">${v.photo ? '<canvas id="cv"></canvas>' : `<div class="empty">Escolha a foto da vista ${esc(def.label.toLowerCase())}.<br><br>Câmera fixa, perpendicular ao aluno, corpo inteiro na foto, pés na base marcada.</div>`}</div></div>
-          <p class="muted" id="hint">${esc(def.sideNote)}</p>
         </div>
-        <div>
-          ${def.defaultFacing ? `<label>O aluno está olhando para a</label><select id="facing"><option value="esq" ${v.facing === 'esq' ? 'selected' : ''}>esquerda da foto</option><option value="dir" ${v.facing === 'dir' ? 'selected' : ''}>direita da foto</option></select>` : ''}
-          <label>Marcação</label><select id="markset"><option value="1" ${ED.mark === 1 ? 'selected' : ''}>Marcação 1 (principal)</option><option value="2" ${ED.mark === 2 ? 'selected' : ''}>Marcação 2 (repetição, para medir o erro)</option></select>
-          <p class="muted" id="markinfo"></p>
-          <h3>Calibração</h3><div id="calpanel"></div>
-          <details id="chk" style="margin-top:10px"></details>
-          <h3>Pontos</h3>
-          <div class="pts" id="pts"></div>
-          <div class="row" style="margin-top:8px"><button id="clrpt">Apagar ponto</button><button class="danger" id="clrall">Limpar vista</button></div>
-          <h3>Ângulos livres</h3><div id="frees"></div>
+        <div class="vp-side">
+          <div class="card"><h2>Avaliação postural</h2>
+            ${def.defaultFacing ? `<label>O aluno está olhando para a</label><select id="facing"><option value="esq" ${v.facing === 'esq' ? 'selected' : ''}>esquerda da foto</option><option value="dir" ${v.facing === 'dir' ? 'selected' : ''}>direita da foto</option></select>` : ''}
+            <p class="muted">${req1} de ${reqTotal} pontos obrigatórios · ${done1} de ${total} no total${done2 ? ` · marcação 2: ${done2} pontos` : ''}</p>
+            <div class="vp-actions">
+              <button class="primary vp-big" id="mk1" ${v.photo ? '' : 'disabled'}>${done1 ? 'Continuar marcação' : 'Marcar pontos'}</button>
+              <button id="mk2" ${v.photo && done1 ? '' : 'disabled'}>Repetir marcação (marcação 2)</button>
+              <button class="danger" id="mkclr" ${done1 || done2 ? '' : 'disabled'}>Limpar marcação</button>
+            </div>
+            <p class="muted">A marcação abre em tela cheia, só com a foto e o ponto da vez.</p>
+          </div>
+          <div class="card"><h2>Calibração</h2>
+            ${c ? `<p class="muted">1 cm = ${String(Math.round(c.pxPerCm * 100) / 100).replace('.', ',')} px · referência ${c.orient === 'h' ? 'horizontal' : 'vertical'} de ${esc(c.cm)} cm.${Math.abs(c.rot) >= 0.05 ? ' Foto inclinada ' + Angles.fmt(Math.abs(c.rot)) + '°.' : ''}</p>
+              <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="calapply" style="width:auto" ${c.apply !== false ? 'checked' : ''}> Corrigir a inclinação da foto nos ângulos</label>` : '<p class="muted">Sem calibração: sem medidas em cm e sem correção de foto inclinada.</p>'}
+            <div class="vp-actions"><button id="cal" ${v.photo ? '' : 'disabled'}>${c ? 'Refazer calibração' : 'Calibrar com fio de prumo'}</button>${c ? '<button class="danger" id="calrm">Remover</button>' : ''}</div>
+          </div>
+          <div class="card"><h2>Ângulos livres</h2>
+            ${fl.length ? fl.map(({ f, fv }) => `<div class="row" style="justify-content:space-between"><span>${esc(f.label)}</span><b>${fv ? Angles.fmt(fv.value) + '°' : 'incompleto'}</b></div>`).join('') : '<p class="muted">Ângulos fora do protocolo, medidos em uma tela separada.</p>'}
+            <div class="vp-actions"><button id="openfree" ${v.photo ? '' : 'disabled'}>Abrir ângulos livres</button></div>
+          </div>
+          <details id="chk" class="card"></details>
         </div>
       </div>`;
     $('#file').onchange = (e) => e.target.files[0] && loadPhoto(key, e.target.files[0]);
     $('#cam').onclick = () => openCamera(key);
-    $('#open-free').onclick = () => openFreeFor(key);
-    $('#markset').onchange = (e) => { ED.mark = +e.target.value; ED.sel = firstMissing(ED.tab); setTool('mark'); refreshSide(); draw(); };
-    renderCalPanel();
+    if ($('#recrop')) $('#recrop').onclick = () => {
+      if ((Object.keys(v.pts).length || v.calib) && !confirm('Cortar ou girar a foto apaga os pontos e a calibração desta vista. Continuar?')) return;
+      openCrop(v.photo, async (out) => {
+        v.photo = out; v.pts = {}; v.pts2 = {}; v.free = []; v.plumbX = null; v.calib = null;
+        invalidate(); await DB.put('assessments', ED.a); renderTab(key);
+      });
+    };
+    if (def.defaultFacing) $('#facing').onchange = (e) => { v.facing = e.target.value; invalidate(); saveSoon(); drawPreview(key); };
+    $('#mk1').onclick = () => openMarker(key, 1);
+    $('#mk2').onclick = () => openMarker(key, 2);
+    $('#mkclr').onclick = () => { if (!confirm('Apagar os pontos da marcação 1 e da marcação 2 desta vista?')) return; v.pts = {}; v.pts2 = {}; invalidate(); saveSoon(); renderTab(key); };
+    $('#cal').onclick = () => openCalib(key);
+    if ($('#calrm')) $('#calrm').onclick = () => { v.calib = null; invalidate(); saveSoon(); renderTab(key); };
+    if ($('#calapply')) $('#calapply').onchange = (e) => { v.calib.apply = e.target.checked; invalidate(); saveSoon(); drawPreview(key); };
+    $('#openfree').onclick = () => openFreeFor(key);
     renderChecklist();
-    if (def.defaultFacing) $('#facing').onchange = (e) => { v.facing = e.target.value; saveSoon(); draw(); };
-    main.querySelectorAll('[data-tool]').forEach((b) => (b.onclick = () => setTool(b.dataset.tool)));
-    $('#tgrid').onclick = () => { ED.grid = !ED.grid; $('#tgrid').classList.toggle('on', ED.grid); draw(); };
-    $('#tguide').onclick = () => { ED.guide = !ED.guide; $('#tguide').classList.toggle('on', ED.guide); refreshSide(); };
-    $('#zin').onclick = () => zoomBy(1.4);
-    $('#zout').onclick = () => zoomBy(1 / 1.4);
-    $('#zfit').onclick = () => { fit(); draw(); };
-    $('#clrpt').onclick = () => { const P = pset(v); if (!ED.sel || !P[ED.sel]) return alert('Selecione um ponto: toque nele na foto ou na lista. Para corrigir o último que você marcou, use "Desfazer".'); deletePoint(ED.sel); };
-    $('#undo').onclick = undoLast;
-    $('#delpt').onclick = () => $('#clrpt').click();
-    $('#clrall').onclick = () => { if (confirm(ED.mark === 2 ? 'Apagar todos os pontos da marcação 2 desta vista?' : 'Apagar todos os pontos desta vista?')) { if (ED.mark === 2) v.pts2 = {}; else { v.pts = {}; v.free = []; } invalidate(); saveSoon(); refreshSide(); draw(); } };
-    ED.sel = firstMissing(key);
-    refreshSide();
-    setTool('mark');
-    bindTabs();
-    if (v.photo) loadImg(v.photo).then((img) => { ED.img = img; setupCanvas(); });
+    if (v.photo) drawPreview(key);
   }
+
+  // Foto marcada, só para ver (sem toque).
+  function drawPreview(key) {
+    const v = ED.a.views[key], cvp = $('#vp-cv');
+    if (!cvp || !v.photo) return;
+    loadImg(v.photo).then((img) => {
+      if (!document.body.contains(cvp)) return;
+      const card = cvp.parentElement, availW = card.clientWidth - 32, maxH = Math.min(window.innerHeight * 0.62, 760);
+      const s = Math.min(availW / img.naturalWidth, maxH / img.naturalHeight);
+      const w = Math.max(1, Math.round(img.naturalWidth * s)), h = Math.max(1, Math.round(img.naturalHeight * s)), dpr = window.devicePixelRatio || 1;
+      cvp.width = w * dpr; cvp.height = h * dpr; cvp.style.width = w + 'px'; cvp.style.height = h + 'px';
+      const c = cvp.getContext('2d');
+      c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawView(c, img, key, v, { s, x: 0, y: 0 }, 1, { grid: false });
+    });
+  }
+  let previewTimer;
+  window.addEventListener('resize', () => { clearTimeout(previewTimer); previewTimer = setTimeout(() => { if (ED.active && VIEW_KEYS.includes(ED.tab) && $('#vp-cv')) drawPreview(ED.tab); }, 150); });
 
   function firstMissing(key) {
     const v = ED.a.views[key];
@@ -295,263 +331,408 @@
     return p ? p[0] : null;
   }
 
-  function refreshSide() {
-    const key = ED.tab;
-    const v = ED.a.views[key];
-    const PS = pset(v);
-    const mi = $('#markinfo');
-    if (mi) mi.textContent = ED.mark === 2 ? 'Marcação 2: refaça os pontos sem olhar a marcação 1 (ela fica oculta). A diferença entre as duas mostra o erro de marcação.' : (v.pts2 && Object.keys(v.pts2).length ? 'Existe uma marcação 2 nesta vista.' : '');
-    $('#pts').innerHTML = Angles.VIEWS[key].points.map(([id, label, hint]) =>
-      `<div data-pt="${id}" class="${PS[id] ? 'done' : ''} ${ED.sel === id ? 'sel' : ''}"><span class="dot"></span><span style="flex:1">${esc(label)}${hint ? `<small>${esc(hint)}</small>` : ''}</span>${PS[id] ? `<button class="mini" data-ptdel="${id}" title="Apagar este ponto">×</button>` : ''}</div>`).join('');
-    main.querySelectorAll('[data-pt]').forEach((el) => (el.onclick = () => { ED.sel = el.dataset.pt; setTool('mark'); refreshSide(); draw(); }));
-    main.querySelectorAll('[data-ptdel]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); deletePoint(b.dataset.ptdel); }));
-    const g = $('#guide');
-    const pdef = Angles.VIEWS[key].points.find(([id]) => id === ED.sel);
-    const gh = ED.guide && pdef && window.Guide ? Guide.html(key, pdef[0], esc(pdef[1]), esc(pdef[2] || ''), v.facing || Angles.VIEWS[key].defaultFacing) : '';
-    g.hidden = !gh;
-    g.innerHTML = gh;
-    const fl = (v.free || []).map((f) => ({ f, fv: Angles.freeValue(f) }));
-    $('#frees').innerHTML = (fl.length ? fl.map(({ f, fv }) => `<div class="row" style="justify-content:space-between"><span>${esc(f.label)}</span><b>${fv ? Angles.fmt(fv.value) + '°' : 'incompleto'}</b></div>`).join('') : '<p class="muted">Nenhum ângulo livre nesta foto.</p>') + `<button id="open-free2" ${v.photo ? '' : 'disabled'}>Abrir ângulos livres</button>`;
-    $('#open-free2').onclick = () => openFreeFor(key);
-  }
-
-  function setTool(t) {
-    ED.calibTmp = t === 'calib' ? [] : null;
-    ED.freeTmp = null;
-    ED.tool = t;
-    main.querySelectorAll('[data-tool]').forEach((b) => b.classList.toggle('on', b.dataset.tool === t));
-    const hint = $('#hint');
-    if (hint) hint.textContent = t === 'calib' ? 'Toque nas duas marcas de distância conhecida (fio de prumo ou régua), uma de cada vez.' : t === 'plumb' ? 'Toque na foto onde passa o fio de prumo (ex.: entre os calcanhares).' : t === 'free' ? 'Toque em 3 pontos. O segundo é o vértice do ângulo.' : t === 'pan' ? 'Arraste para mover. Use dois dedos para aproximar.' : Angles.VIEWS[ED.tab].sideNote + ' Toque para marcar o ponto selecionado; arraste um ponto para ajustar.';
-  }
-
   function loadImg(src) {
     return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
   }
 
+  // Foto nova: reduz, abre o corte/giro e só então grava (pontos e calibração recomeçam).
   async function loadPhoto(key, file, meta) {
-    const url = URL.createObjectURL(file);
-    const img = await loadImg(url);
-    const max = 1800;
-    const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-    const c = document.createElement('canvas');
-    c.width = Math.round(img.naturalWidth * k);
-    c.height = Math.round(img.naturalHeight * k);
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    URL.revokeObjectURL(url);
     const v = ED.a.views[key];
     if (v.photo && Object.keys(v.pts).length && !confirm('Trocar a foto apaga os pontos marcados nesta vista. Continuar?')) return;
-    v.photo = c.toDataURL('image/jpeg', 0.88);
-    v.pts = {};
-    v.pts2 = {};
-    v.free = [];
-    v.plumbX = null;
-    v.calib = null;
-    v.captureTilt = meta && meta.tilt != null ? meta.tilt : null;
-    invalidate();
-    await DB.put('assessments', ED.a);
-    renderView(key);
+    const src = await shrinkToDataUrl(file, 1800);
+    openCrop(src, async (out) => {
+      v.photo = out; v.pts = {}; v.pts2 = {}; v.free = []; v.plumbX = null; v.calib = null;
+      v.captureTilt = meta && meta.tilt != null ? meta.tilt : null;
+      invalidate();
+      await DB.put('assessments', ED.a);
+      renderTab(key);
+    });
   }
 
-  // ---------- Canvas ----------
-  let cv, ctx;
-  function setupCanvas() {
-    cv = $('#cv');
-    if (!cv) return;
-    ctx = cv.getContext('2d');
-    const w = $('#stage').clientWidth;
-    const h = Math.max(380, Math.min(window.innerHeight - 200, 1100));
-    const dpr = window.devicePixelRatio || 1;
-    cv.width = w * dpr;
-    cv.height = h * dpr;
-    cv.style.height = h + 'px';
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    fit();
-    draw();
-    cv.onpointerdown = onDown;
-    cv.onpointermove = onMove;
-    cv.onpointerup = cv.onpointercancel = onUp;
-  }
-  window.addEventListener('resize', () => { if (ED.active && VIEW_KEYS.includes(ED.tab) && ED.img) setupCanvas(); });
+  // ---------- Tela cheia: base comum (foto, zoom com dois dedos, mover, lupa, botões flutuantes) ----------
+  const svgI = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const ICON = {
+    close: svgI('<path d="M6 6l12 12M18 6L6 18"/>'),
+    back: svgI('<path d="M19 12H5M11 6l-6 6 6 6"/>'),
+    pin: svgI('<path d="M9 3h6l-1 6 4 4H6l4-4-1-6zM12 13v8"/>'),
+    redo: svgI('<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/>'),
+    rotL: svgI('<path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v5h5"/>'),
+    grid: svgI('<path d="M4 4h16v16H4zM4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/>'),
+    contrast: svgI('<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/>'),
+    move: svgI('<path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>'),
+    list: svgI('<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>'),
+    fit: svgI('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'),
+    plus: svgI('<path d="M12 5v14M5 12h14"/>'),
+    check: svgI('<path d="M5 13l4 4L19 7"/>'),
+    nudge: svgI('<path d="M12 3l3 3H9zM12 21l-3-3h6zM3 12l3-3v6zM21 12l-3 3V9z" fill="currentColor"/>'),
+  };
+  const fsBtn = (act, icon, label, cls) => `<button type="button" class="fs-btn ${cls || ''}" data-act="${act}">${icon}<span>${label}</span></button>`;
 
-  function fit() {
-    const w = cv.clientWidth, h = cv.clientHeight, iw = ED.img.naturalWidth, ih = ED.img.naturalHeight;
-    const s = Math.min(w / iw, h / ih);
-    ED.tf = { s, x: (w - iw * s) / 2, y: (h - ih * s) / 2 };
-  }
-  function zoomBy(f, cx, cy) {
-    if (!cv) return;
-    cx = cx == null ? cv.clientWidth / 2 : cx;
-    cy = cy == null ? cv.clientHeight / 2 : cy;
-    const t = ED.tf;
-    t.x = cx - (cx - t.x) * f;
-    t.y = cy - (cy - t.y) * f;
-    t.s *= f;
-    draw();
-  }
-  const toImg = (p) => ({ x: (p.x - ED.tf.x) / ED.tf.s, y: (p.y - ED.tf.y) / ED.tf.s });
-  const evPos = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
-
-  function nearestPoint(q, radiusPx) {
-    const v = ED.a.views[ED.tab];
-    let best = null, bd = radiusPx / ED.tf.s;
-    for (const [id, p] of Object.entries(pset(v))) {
-      const d = Math.hypot(p.x - q.x, p.y - q.y);
-      if (d < bd) { bd = d; best = id; }
-    }
-    return best;
-  }
-
-  function onDown(e) {
-    cv.setPointerCapture(e.pointerId);
-    const p = evPos(e);
-    ED.ptrs.set(e.pointerId, p);
-    if (ED.ptrs.size === 2) {
-      const [a, b] = [...ED.ptrs.values()];
-      ED.drag = null;
-      ED.loupe = null;
-      ED.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), c: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, tf: { ...ED.tf } };
-      return;
-    }
-    const v = ED.a.views[ED.tab];
-    const q = toImg(p);
-    if (ED.tool === 'pan') { ED.drag = { pan: p, tf: { ...ED.tf } }; return; }
-    if (ED.tool === 'plumb') { v.plumbX = q.x; saveSoon(); draw(); return; }
-    if (ED.tool === 'calib') {
-      ED.calibTmp.push(q);
-      if (ED.calibTmp.length === 2) {
-        const cm = parseFloat(String(($('#calcm') || {}).value || ED.lastCalCm || 100).replace(',', '.'));
-        const orient = ($('#calori') || {}).value || ED.lastCalOri || 'v';
-        const c = Angles.calibFromPoints(ED.calibTmp[0], ED.calibTmp[1], cm, orient);
-        if (!c) { alert('Distância inválida: informe a distância real em cm.'); setTool('mark'); return; }
-        ED.lastCalCm = cm; ED.lastCalOri = orient;
-        v.calib = c;
-        invalidate(); saveSoon(); setTool('mark'); renderCalPanel(); refreshSide();
+  // o: { img, title, overlayHtml, leftHtml, rightHtml, bottomHtml, drawOverlay(ctx, tf, isLoupe),
+  //      hit(q, raio) → alvo, start(alvo), place(q) → alvo, move(alvo, q), end(alvo, moveu, colocado), cancel(drag), action(nome, botão), onClose() }
+  function makeStage(o) {
+    document.body.style.overflow = 'hidden';
+    const root = document.createElement('div');
+    root.className = 'fs';
+    root.innerHTML = `<div class="fs-head"><button type="button" class="fs-x" data-act="close" aria-label="Fechar">${ICON.close}</button><div class="fs-title"><b>${esc(o.title)}</b><span class="fs-sub"></span></div></div>
+      <div class="fs-area"><canvas class="fs-cv"></canvas>${o.overlayHtml || ''}<div class="fs-left">${o.leftHtml || ''}</div><div class="fs-right">${o.rightHtml || ''}</div><div class="fs-drawer" hidden></div><div class="fs-toast" hidden></div></div>
+      <div class="fs-bottom">${o.bottomHtml || ''}</div>`;
+    document.body.appendChild(root);
+    const area = root.querySelector('.fs-area'), cv = root.querySelector('.fs-cv');
+    const S = { root, img: o.img, tf: { s: 1, x: 0, y: 0 }, grid: !!o.grid, contrast: false, panMode: false, ptrs: new Map(), drag: null, pinch: null, loupe: null, alive: true, imgC: null, w: 1, h: 1 };
+    let g;
+    const iw = () => S.img.naturalWidth || S.img.width, ih = () => S.img.naturalHeight || S.img.height;
+    const size = () => {
+      const r = area.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+      S.w = Math.max(1, r.width); S.h = Math.max(1, r.height);
+      cv.width = Math.round(S.w * dpr); cv.height = Math.round(S.h * dpr);
+      g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    S.fit = () => { const s = Math.min((S.w - 16) / iw(), (S.h - 16) / ih()); S.tf = { s, x: (S.w - iw() * s) / 2, y: (S.h - ih() * s) / 2 }; S.draw(); };
+    S.setImage = (img) => { S.img = img; S.imgC = null; S.fit(); };
+    const contrastImg = () => {
+      if (S.imgC) return S.imgC;
+      const c = document.createElement('canvas'); c.width = iw(); c.height = ih();
+      const x = c.getContext('2d'); x.drawImage(S.img, 0, 0);
+      try {
+        const d = x.getImageData(0, 0, c.width, c.height), a = d.data, k = 1.5, b = 14;
+        for (let i = 0; i < a.length; i += 4) { a[i] = Math.max(0, Math.min(255, (a[i] - 128) * k + 128 + b)); a[i + 1] = Math.max(0, Math.min(255, (a[i + 1] - 128) * k + 128 + b)); a[i + 2] = Math.max(0, Math.min(255, (a[i + 2] - 128) * k + 128 + b)); }
+        x.putImageData(d, 0, 0);
+      } catch (_) { /* sem acesso aos pixels: usa a foto original */ }
+      S.imgC = c;
+      return c;
+    };
+    const paint = (ctx, tf, loupe) => {
+      ctx.save(); ctx.translate(tf.x, tf.y); ctx.scale(tf.s, tf.s);
+      ctx.drawImage(S.contrast ? contrastImg() : S.img, 0, 0);
+      if (S.grid && !loupe) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.38)'; ctx.lineWidth = 1 / tf.s;
+        const W = iw(), H = ih(), step = W / 8;
+        ctx.beginPath();
+        for (let x = step; x < W; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+        for (let y = step; y < H; y += step) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+        ctx.stroke();
       }
-      draw();
-      return;
-    }
-    // Tocar e arrastar um ponto existente move esse ponto; um toque simples marca o ponto selecionado.
-    const hit = nearestPoint(q, 26);
-    ED.drag = { id: null, hit, start: p, q };
-    ED.loupe = { p, q };
-    draw();
-  }
-
-  function startPointDrag(id, q, placed) {
-    ED.sel = id;
-    const set = pset(ED.a.views[ED.tab]);
-    ED.pend = { tab: ED.tab, mark: ED.mark, id, prev: set[id] ? { ...set[id] } : null };
-    set[id] = q;
-    invalidate();
-    ED.drag = { id, placed };
-    refreshSide();
-  }
-
-  // Apaga um ponto (guarda no histórico) e deixa o ponto selecionado para marcar de novo.
-  function deletePoint(id) {
-    const P = pset(ED.a.views[ED.tab]);
-    if (!P[id]) return;
-    ED.undo.push({ tab: ED.tab, mark: ED.mark, id, prev: { ...P[id] } });
-    delete P[id];
-    ED.sel = id;
-    invalidate(); saveSoon(); refreshSide(); draw();
-  }
-  // Desfaz a última marcação, movimento ou exclusão de ponto nesta vista.
-  function undoLast() {
-    for (let i = ED.undo.length - 1; i >= 0; i--) {
-      const e = ED.undo[i];
-      if (e.tab !== ED.tab || e.mark !== ED.mark) continue;
-      ED.undo.splice(i, 1);
-      const set = pset(ED.a.views[ED.tab]);
-      if (e.prev) set[e.id] = e.prev; else delete set[e.id];
-      ED.sel = e.id;
-      invalidate(); saveSoon(); refreshSide(); draw();
-      return;
-    }
-    alert('Nada para desfazer nesta vista.');
-  }
-
-  function onMove(e) {
-    if (!ED.ptrs.has(e.pointerId)) return;
-    const p = evPos(e);
-    ED.ptrs.set(e.pointerId, p);
-    if (ED.pinch && ED.ptrs.size === 2) {
-      const [a, b] = [...ED.ptrs.values()];
-      const d = Math.hypot(a.x - b.x, a.y - b.y);
-      const c = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-      const t0 = ED.pinch.tf, f = d / ED.pinch.d;
-      ED.tf = { s: t0.s * f, x: c.x - (ED.pinch.c.x - t0.x) * f, y: c.y - (ED.pinch.c.y - t0.y) * f };
-      draw();
-      return;
-    }
-    if (!ED.drag) return;
-    if (ED.drag.pan) {
-      ED.tf.x = ED.drag.tf.x + p.x - ED.drag.pan.x;
-      ED.tf.y = ED.drag.tf.y + p.y - ED.drag.pan.y;
-    } else if (!ED.drag.id) {
-      // Ainda não decidido: vira arraste quando o dedo se move mais de 6 px.
-      if (Math.hypot(p.x - ED.drag.start.x, p.y - ED.drag.start.y) < 6) return;
-      const id = ED.drag.hit || ED.sel;
-      if (!id) { ED.drag = null; return; }
-      startPointDrag(id, toImg(p), !ED.drag.hit && !pset(ED.a.views[ED.tab])[id]);
-      ED.loupe = { p, q: toImg(p) };
-    } else {
+      ctx.restore();
+      if (o.drawOverlay) o.drawOverlay(ctx, tf, loupe);
+    };
+    S.draw = () => {
+      if (!g) return;
+      g.fillStyle = '#000'; g.fillRect(0, 0, S.w, S.h);
+      paint(g, S.tf, false);
+      if (S.loupe) {
+        const R = Math.min(80, S.w / 5), Z = 3, { p, q } = S.loupe;
+        const cx = p.x < S.w / 2 ? S.w - R - 12 : R + 12, cy = p.y < R * 2 + 40 ? S.h - R - 12 : R + 12;
+        g.save(); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.clip();
+        g.fillStyle = '#000'; g.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+        const s = S.tf.s * Z;
+        paint(g, { s, x: cx - q.x * s, y: cy - q.y * s }, true);
+        g.restore();
+        g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2);
+        g.moveTo(cx - 12, cy); g.lineTo(cx + 12, cy); g.moveTo(cx, cy - 12); g.lineTo(cx, cy + 12); g.stroke();
+      }
+    };
+    const toImg = (p) => ({ x: (p.x - S.tf.x) / S.tf.s, y: (p.y - S.tf.y) / S.tf.s });
+    const pos = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    cv.onpointerdown = (e) => {
+      try { cv.setPointerCapture(e.pointerId); } catch (_) { /* ok */ }
+      const p = pos(e);
+      S.ptrs.set(e.pointerId, p);
+      if (S.ptrs.size === 2) {
+        if (S.drag && S.drag.t && o.cancel) o.cancel(S.drag);
+        const [a, b] = [...S.ptrs.values()];
+        S.drag = null; S.loupe = null;
+        S.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), c: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, tf: { ...S.tf } };
+        S.draw();
+        return;
+      }
       const q = toImg(p);
-      pset(ED.a.views[ED.tab])[ED.drag.id] = q;
-      ED.loupe = { p, q };
-    }
-    draw();
-  }
-
-  function onUp(e) {
-    ED.ptrs.delete(e.pointerId);
-    if (ED.ptrs.size < 2) ED.pinch = null;
-    if (ED.drag && !ED.drag.id && !ED.drag.pan) {
-      if (ED.drag.hit) { ED.sel = ED.drag.hit; refreshSide(); } // tocar num ponto existente só o seleciona
-      else if (ED.sel) startPointDrag(ED.sel, ED.drag.q, !pset(ED.a.views[ED.tab])[ED.sel]); // toque no vazio marca o ponto selecionado
-    }
-    if (ED.drag && ED.drag.id) {
-      saveSoon();
-      if (ED.pend) {
-        const cur = pset(ED.a.views[ED.tab])[ED.pend.id];
-        if (!ED.pend.prev || !cur || Math.hypot(cur.x - ED.pend.prev.x, cur.y - ED.pend.prev.y) > 0.5 / ED.tf.s) { ED.undo.push(ED.pend); if (ED.undo.length > 300) ED.undo.shift(); }
-        ED.pend = null;
+      if (!S.panMode) {
+        const t = o.hit && o.hit(q, 26 / S.tf.s);
+        if (t) { if (o.start) o.start(t); S.drag = { t, moved: false }; S.loupe = { p, q }; S.draw(); return; }
+        const n = o.place && o.place(q);
+        if (n) { S.drag = { t: n, moved: true, placed: true }; S.loupe = { p, q }; S.draw(); return; }
       }
-      if (ED.drag.placed) ED.sel = firstMissing(ED.tab) || ED.drag.id;
-      refreshSide();
-    }
-    ED.drag = null;
-    ED.loupe = null;
-    draw();
+      S.drag = { pan: p, tf: { ...S.tf } };
+    };
+    cv.onpointermove = (e) => {
+      if (!S.ptrs.has(e.pointerId)) return;
+      const p = pos(e);
+      S.ptrs.set(e.pointerId, p);
+      if (S.pinch && S.ptrs.size === 2) {
+        const [a, b] = [...S.ptrs.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y), c = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, t0 = S.pinch.tf, f = d / S.pinch.d;
+        S.tf = { s: t0.s * f, x: c.x - (S.pinch.c.x - t0.x) * f, y: c.y - (S.pinch.c.y - t0.y) * f };
+        S.draw();
+        return;
+      }
+      if (!S.drag) return;
+      if (S.drag.pan) { S.tf.x = S.drag.tf.x + p.x - S.drag.pan.x; S.tf.y = S.drag.tf.y + p.y - S.drag.pan.y; }
+      else { const q = toImg(p); S.drag.moved = true; if (o.move) o.move(S.drag.t, q); S.loupe = { p, q }; }
+      S.draw();
+    };
+    const up = (e) => {
+      S.ptrs.delete(e.pointerId);
+      if (S.ptrs.size < 2) S.pinch = null;
+      if (S.drag && S.drag.t && o.end) o.end(S.drag.t, S.drag.moved, !!S.drag.placed);
+      S.drag = null; S.loupe = null;
+      S.draw();
+    };
+    cv.onpointerup = up; cv.onpointercancel = up;
+    root.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-act]');
+      if (!b || !root.contains(b)) return;
+      const act = b.dataset.act;
+      if (act === 'close') return S.close();
+      if (act === 'grid') { S.grid = !S.grid; b.classList.toggle('on', S.grid); S.draw(); return; }
+      if (act === 'contrast') { S.contrast = !S.contrast; b.classList.toggle('on', S.contrast); S.draw(); return; }
+      if (act === 'move') { S.panMode = !S.panMode; b.classList.toggle('on', S.panMode); S.toast(S.panMode ? 'Mover: arraste a foto. Toque de novo em Mover para voltar a marcar.' : 'Voltou a marcar.'); return; }
+      if (act === 'fit') { S.fit(); return; }
+      if (o.action) o.action(act, b);
+    });
+    let toastT;
+    S.toast = (msg, ms) => { const t = root.querySelector('.fs-toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, ms || 2800); };
+    S.setSub = (txt) => { root.querySelector('.fs-sub').textContent = txt; };
+    S.drawer = (html) => { const d = root.querySelector('.fs-drawer'); if (html == null) { d.hidden = true; d.innerHTML = ''; return d; } d.innerHTML = html; d.hidden = false; return d; };
+    S.modal = (html) => { S.closeModal(); const m = document.createElement('div'); m.className = 'fs-modal'; m.innerHTML = `<div class="box">${html}</div>`; area.appendChild(m); return m; };
+    S.closeModal = () => { const m = area.querySelector('.fs-modal'); if (m) m.remove(); };
+    S.close = () => {
+      if (!S.alive) return;
+      S.alive = false;
+      ro.disconnect();
+      window.removeEventListener('orientationchange', onOrient);
+      root.remove();
+      document.body.style.overflow = '';
+      if (o.onClose) o.onClose();
+    };
+    // Girar o iPad: o palco ocupa a tela inteira nos dois sentidos; refaz o tamanho e o enquadramento.
+    const ro = new ResizeObserver(() => { if (!S.alive) return; size(); S.fit(); });
+    ro.observe(area);
+    const onOrient = () => setTimeout(() => { if (S.alive) { size(); S.fit(); } }, 300);
+    window.addEventListener('orientationchange', onOrient);
+    size();
+    S.fit();
+    return S;
   }
 
-  function draw() {
-    if (!cv || !ED.img || !VIEW_KEYS.includes(ED.tab)) return;
-    const w = cv.clientWidth, h = cv.clientHeight;
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, w, h);
-    drawView(ctx, ED.img, ED.tab, ED.a.views[ED.tab], ED.tf, 1, { grid: ED.grid, sel: ED.sel, tmp: ED.freeTmp, set: ED.mark, calibTmp: ED.calibTmp });
-    if (ED.loupe) drawLoupe();
+  // ---------- Marcação postural em tela cheia ----------
+  function openMarker(key, set) {
+    const def = Angles.VIEWS[key], v = ED.a.views[key];
+    if (!v.photo) return;
+    ED.mark = set;
+    const P = () => pset(v);
+    const pts = def.points;
+    const idx = (id) => pts.findIndex((p) => p[0] === id);
+    let cur = firstMissing(key) || pts[0][0];
+    const hist = [], skipped = new Set();
+    let guideBig = false;
+    loadImg(v.photo).then((img) => {
+      const S = makeStage({
+        img,
+        title: def.label + (set === 2 ? ' — marcação 2' : ''),
+        overlayHtml: '<div class="mk-guide" role="button" aria-label="Ampliar a figura"></div><div class="mk-name"></div>',
+        leftHtml: fsBtn('grid', ICON.grid, 'Grade') + fsBtn('contrast', ICON.contrast, 'Contraste'),
+        rightHtml: fsBtn('move', ICON.move, 'Mover') + fsBtn('list', ICON.list, 'Pontos') + fsBtn('fit', ICON.fit, 'Ajustar'),
+        bottomHtml: fsBtn('undo', ICON.back, 'Desfazer') + fsBtn('next', ICON.pin, 'Próximo', 'primary') + fsBtn('redo', ICON.redo, 'Refazer ponto'),
+        drawOverlay: (c, tf) => drawView(c, img, key, v, tf, 1.3, { noImage: true, grid: false, style: 'plain', noLabels: true, noFree: true, sel: cur, set }),
+        hit: (q, r) => { const p = P()[cur]; return p && Math.hypot(p.x - q.x, p.y - q.y) < r ? cur : null; },
+        start: (id) => { hist.push({ id, prev: { ...P()[id] } }); },
+        place: (q) => { hist.push({ id: cur, prev: P()[cur] ? { ...P()[cur] } : null }); P()[cur] = q; return cur; },
+        move: (id, q) => { P()[id] = q; },
+        end: (id, moved, placed) => { if (!moved && !placed) hist.pop(); invalidate(); saveSoon(); ui(); },
+        cancel: (d) => { if (d.placed) { const h = hist.pop(); if (h) { if (h.prev) P()[h.id] = h.prev; else delete P()[h.id]; } } },
+        action: (act) => {
+          if (act === 'undo') {
+            const h = hist.pop();
+            if (!h) return S.toast('Nada para desfazer.');
+            if (h.prev) P()[h.id] = h.prev; else delete P()[h.id];
+            cur = h.id; invalidate(); saveSoon(); ui();
+          } else if (act === 'redo') {
+            if (!P()[cur]) return S.toast('Este ponto ainda não foi marcado: toque na foto.');
+            hist.push({ id: cur, prev: { ...P()[cur] } });
+            delete P()[cur]; invalidate(); saveSoon(); ui();
+            S.toast('Toque na foto para marcar de novo.');
+          } else if (act === 'next') {
+            const p = pts[idx(cur)];
+            if (!P()[cur]) {
+              if (!isOptional(p)) return S.toast(`Toque na foto para marcar "${p[1]}". Para pular, escolha outro ponto em Pontos.`);
+              skipped.add(cur);
+            }
+            const i = idx(cur), n = pts.length;
+            let nx = null;
+            for (let k = 1; k <= n; k++) { const pp = pts[(i + k) % n]; if (!P()[pp[0]] && !skipped.has(pp[0])) { nx = pp[0]; break; } }
+            if (nx) { cur = nx; ui(); return; }
+            ui();
+            const m = S.modal(`<h2>Pontos marcados</h2><p>${pts.filter(([id]) => P()[id]).length} de ${n} pontos marcados${pts.some((pp) => !P()[pp[0]]) ? ' (os que faltam são opcionais)' : ''}.</p><div class="row"><button class="primary" data-m="ok">Concluir</button><button data-m="rev">Revisar</button></div>`);
+            m.querySelector('[data-m="ok"]').onclick = () => S.close();
+            m.querySelector('[data-m="rev"]').onclick = () => S.closeModal();
+          } else if (act === 'list') {
+            const d = S.drawer(`<div class="row" style="justify-content:space-between"><h3 style="margin:0">Pontos</h3><button data-dr="x">Fechar</button></div>
+              <p class="muted">Toque num ponto para ir até ele.</p>
+              ${pts.map(([id, label, hint]) => `<button class="dr-row ${id === cur ? 'cur' : ''} ${P()[id] ? 'done' : ''}" data-pt="${id}"><span class="dot"></span><span><b>${esc(label)}</b>${hint ? `<small>${esc(hint)}</small>` : ''}</span></button>`).join('')}`);
+            d.querySelector('[data-dr="x"]').onclick = () => S.drawer(null);
+            d.querySelectorAll('[data-pt]').forEach((b) => (b.onclick = () => { cur = b.dataset.pt; skipped.delete(cur); S.drawer(null); ui(); }));
+          }
+        },
+        onClose: () => { saveSoon(); renderTab(key); },
+      });
+      const ui = () => {
+        const p = pts[idx(cur)];
+        const gEl = S.root.querySelector('.mk-guide'), nEl = S.root.querySelector('.mk-name');
+        gEl.className = 'mk-guide' + (guideBig ? ' big' : '');
+        gEl.innerHTML = (window.Guide ? Guide.thumb(key, cur, v.facing || def.defaultFacing, guideBig) : '') + `<span class="mk-help">${guideBig ? '−' : '?'}</span>`;
+        const side = window.Guide && Guide.sideText ? Guide.sideText(key, cur) : '';
+        nEl.className = 'mk-name' + (guideBig ? ' low' : '');
+        nEl.innerHTML = `${esc(p[1])}${p[2] ? `<small>${esc(p[2])}</small>` : ''}${side ? `<small class="side">${esc(side)}</small>` : ''}`;
+        const done = pts.filter(([id]) => P()[id]).length;
+        S.setSub(`${set === 2 ? 'Marcação 2 · ' : ''}ponto ${idx(cur) + 1} de ${pts.length} · ${done} marcados`);
+        S.root.querySelector('[data-act="next"] span').textContent = !P()[cur] && isOptional(p) ? 'Pular' : 'Próximo';
+        S.draw();
+      };
+      S.root.querySelector('.mk-guide').onclick = () => { guideBig = !guideBig; ui(); };
+      ui();
+      S.toast('Toque na foto para marcar o ponto. Arraste o ponto para ajustar. Dois dedos aproximam a foto.', 4200);
+    });
   }
 
-  function drawLoupe() {
-    const R = 70, Z = 3, { q } = ED.loupe;
-    const cx = R + 12, cy = R + 12;
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.fillStyle = '#000';
-    ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
-    const s = ED.tf.s * Z;
-    drawView(ctx, ED.img, ED.tab, ED.a.views[ED.tab], { s, x: cx - q.x * s, y: cy - q.y * s }, 1, { grid: false, sel: ED.sel, noLabels: true, set: ED.mark });
-    ctx.restore();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.moveTo(cx - 12, cy); ctx.lineTo(cx + 12, cy); ctx.moveTo(cx, cy - 12); ctx.lineTo(cx, cy + 12);
-    ctx.stroke();
+  // ---------- Calibração em tela cheia ----------
+  function openCalib(key) {
+    const def = Angles.VIEWS[key], v = ED.a.views[key];
+    if (!v.photo) return;
+    const marks = v.calib ? [{ ...v.calib.a }, { ...v.calib.b }] : [];
+    const cm0 = v.calib ? v.calib.cm : (ED.lastCalCm || 100), ori0 = v.calib ? v.calib.orient : (ED.lastCalOri || 'v');
+    const hist = [];
+    loadImg(v.photo).then((img) => {
+      const S = makeStage({
+        img,
+        title: 'Calibração — ' + def.label,
+        overlayHtml: '<div class="fs-pill"></div>',
+        leftHtml: fsBtn('grid', ICON.grid, 'Grade') + fsBtn('contrast', ICON.contrast, 'Contraste'),
+        rightHtml: fsBtn('move', ICON.move, 'Mover') + fsBtn('fit', ICON.fit, 'Ajustar'),
+        bottomHtml: fsBtn('undo', ICON.back, 'Desfazer') +
+          `<div class="cal-form"><label>Distância real (cm)<input class="cal-cm" inputmode="decimal" value="${esc(cm0)}"></label><select class="cal-ori"><option value="v">Fio de prumo (vertical)</option><option value="h">Régua (horizontal)</option></select></div>` +
+          fsBtn('ok', ICON.check, 'Concluir', 'primary'),
+        drawOverlay: (c, tf) => {
+          c.save(); c.translate(tf.x, tf.y); c.scale(tf.s, tf.s);
+          const u = 1 / tf.s;
+          if (marks.length === 2) { c.strokeStyle = '#00e5ff'; c.lineWidth = 3 * u; c.beginPath(); c.moveTo(marks[0].x, marks[0].y); c.lineTo(marks[1].x, marks[1].y); c.stroke(); }
+          marks.forEach((q) => dot(c, q, u, '#00bcd4', false));
+          c.restore();
+        },
+        hit: (q, r) => { let best = null, bd = r; marks.forEach((p, i) => { const d = Math.hypot(p.x - q.x, p.y - q.y); if (d < bd) { bd = d; best = i + 1; } }); return best; },
+        start: (t) => { hist.push({ i: t - 1, prev: { ...marks[t - 1] } }); },
+        place: (q) => { if (marks.length >= 2) return null; hist.push({ i: marks.length, prev: null }); marks.push(q); return marks.length; },
+        move: (t, q) => { marks[t - 1] = q; },
+        end: (t, moved, placed) => { if (!moved && !placed) hist.pop(); ui(); },
+        cancel: (d) => { if (d.placed) { hist.pop(); marks.pop(); } },
+        action: (act) => {
+          if (act === 'undo') {
+            const h = hist.pop();
+            if (!h) return S.toast('Nada para desfazer.');
+            if (h.prev) marks[h.i] = h.prev; else marks.splice(h.i, 1);
+            ui();
+          } else if (act === 'ok') {
+            if (marks.length < 2) return S.toast('Marque as duas marcas de distância conhecida.');
+            const cm = parseFloat(String(S.root.querySelector('.cal-cm').value).replace(',', '.'));
+            const orient = S.root.querySelector('.cal-ori').value;
+            const c = Angles.calibFromPoints(marks[0], marks[1], cm, orient);
+            if (!c) return S.toast('Informe a distância real em cm.');
+            if (v.calib && v.calib.apply === false) c.apply = false;
+            v.calib = c; ED.lastCalCm = cm; ED.lastCalOri = orient;
+            invalidate(); saveSoon(); S.close();
+          }
+        },
+        onClose: () => renderTab(key),
+      });
+      S.root.querySelector('.cal-ori').value = ori0;
+      const ui = () => {
+        S.root.querySelector('.fs-pill').textContent = marks.length === 0 ? 'Toque na marca de cima do fio de prumo (ou numa ponta da régua).' : marks.length === 1 ? 'Agora toque na outra marca.' : 'Arraste as marcas para ajustar, confira a distância e toque em Concluir.';
+        S.setSub(`${marks.length} de 2 marcas`);
+        S.draw();
+      };
+      ui();
+    });
+  }
+
+  // ---------- Cortar e girar a foto ----------
+  function openCrop(src, onDone) {
+    loadImg(src).then((img) => {
+      let rot90 = 0, fine = 0, base, rect, finished = false;
+      const build = () => {
+        const deg = rot90 * 90 + fine, r = (deg * Math.PI) / 180, w = img.naturalWidth, h = img.naturalHeight;
+        const W = Math.round(Math.abs(w * Math.cos(r)) + Math.abs(h * Math.sin(r))), H = Math.round(Math.abs(w * Math.sin(r)) + Math.abs(h * Math.cos(r)));
+        base = document.createElement('canvas'); base.width = W; base.height = H;
+        const x = base.getContext('2d');
+        x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+        x.translate(W / 2, H / 2); x.rotate(r); x.drawImage(img, -w / 2, -h / 2);
+        rect = { x: 0, y: 0, w: W, h: H };
+        if (Math.abs(fine) > 0.05) {
+          const ow = rot90 % 2 ? h : w, oh = rot90 % 2 ? w : h, a = Math.abs((fine * Math.PI) / 180);
+          const k = 1 / (Math.cos(a) + Math.sin(a) * (Math.max(ow, oh) / Math.min(ow, oh)));
+          rect = { x: (W - ow * k) / 2, y: (H - oh * k) / 2, w: ow * k, h: oh * k };
+        }
+      };
+      build();
+      const MIN = 40;
+      const clamp = () => {
+        rect.w = Math.max(MIN, Math.min(rect.w, base.width)); rect.h = Math.max(MIN, Math.min(rect.h, base.height));
+        rect.x = Math.max(0, Math.min(rect.x, base.width - rect.w)); rect.y = Math.max(0, Math.min(rect.y, base.height - rect.h));
+      };
+      const S = makeStage({
+        img: base,
+        grid: true,
+        title: 'Cortar e girar',
+        overlayHtml: '<div class="fs-pill">Arraste os cantos para cortar. Use os botões para girar e a barra para nivelar a foto.</div>',
+        rightHtml: fsBtn('fit', ICON.fit, 'Ajustar'),
+        leftHtml: fsBtn('grid', ICON.grid, 'Grade', 'on'),
+        bottomHtml: fsBtn('rotl', ICON.rotL, 'Girar') +
+          '<div class="crop-fine"><label>Nivelar <b class="crop-val">0°</b></label><input type="range" min="-10" max="10" step="0.1" value="0" class="crop-range"></div>' +
+          fsBtn('ok', ICON.check, 'Usar foto', 'primary') + fsBtn('rotr', ICON.redo, 'Girar'),
+        drawOverlay: (c, tf) => {
+          c.save(); c.translate(tf.x, tf.y); c.scale(tf.s, tf.s);
+          const u = 1 / tf.s, W = base.width, H = base.height;
+          c.fillStyle = 'rgba(0,0,0,0.55)';
+          c.fillRect(0, 0, W, rect.y); c.fillRect(0, rect.y + rect.h, W, H - rect.y - rect.h);
+          c.fillRect(0, rect.y, rect.x, rect.h); c.fillRect(rect.x + rect.w, rect.y, W - rect.x - rect.w, rect.h);
+          c.strokeStyle = '#fff'; c.lineWidth = 2 * u; c.strokeRect(rect.x, rect.y, rect.w, rect.h);
+          c.strokeStyle = 'rgba(255,214,10,0.9)'; c.setLineDash([8 * u, 6 * u]); c.beginPath(); c.moveTo(rect.x + rect.w / 2, rect.y); c.lineTo(rect.x + rect.w / 2, rect.y + rect.h); c.stroke(); c.setLineDash([]);
+          [[rect.x, rect.y], [rect.x + rect.w, rect.y], [rect.x, rect.y + rect.h], [rect.x + rect.w, rect.y + rect.h]].forEach(([x, y]) => { c.beginPath(); c.arc(x, y, 9 * u, 0, Math.PI * 2); c.fillStyle = '#fff'; c.fill(); });
+          c.restore();
+        },
+        hit: (q, r) => {
+          const R = r * 1.4, cs = { tl: [rect.x, rect.y], tr: [rect.x + rect.w, rect.y], bl: [rect.x, rect.y + rect.h], br: [rect.x + rect.w, rect.y + rect.h] };
+          for (const [k, [x, y]] of Object.entries(cs)) if (Math.hypot(q.x - x, q.y - y) < R) return { k };
+          if (q.x > rect.x && q.x < rect.x + rect.w && q.y > rect.y && q.y < rect.y + rect.h) return { k: 'in', dx: q.x - rect.x, dy: q.y - rect.y };
+          return null;
+        },
+        move: (t, q) => {
+          const x2 = rect.x + rect.w, y2 = rect.y + rect.h;
+          if (t.k === 'in') { rect.x = q.x - t.dx; rect.y = q.y - t.dy; }
+          if (t.k === 'tl') { rect.x = Math.min(q.x, x2 - MIN); rect.y = Math.min(q.y, y2 - MIN); rect.w = x2 - rect.x; rect.h = y2 - rect.y; }
+          if (t.k === 'tr') { rect.y = Math.min(q.y, y2 - MIN); rect.w = Math.max(MIN, q.x - rect.x); rect.h = y2 - rect.y; }
+          if (t.k === 'bl') { rect.x = Math.min(q.x, x2 - MIN); rect.w = x2 - rect.x; rect.h = Math.max(MIN, q.y - rect.y); }
+          if (t.k === 'br') { rect.w = Math.max(MIN, q.x - rect.x); rect.h = Math.max(MIN, q.y - rect.y); }
+          if (rect.x < 0) { rect.w += rect.x; rect.x = 0; }
+          if (rect.y < 0) { rect.h += rect.y; rect.y = 0; }
+          clamp();
+        },
+        action: (act) => {
+          if (act === 'rotl' || act === 'rotr') { rot90 = (rot90 + (act === 'rotl' ? 3 : 1)) % 4; build(); S.setImage(base); }
+          else if (act === 'ok') {
+            const out = document.createElement('canvas');
+            out.width = Math.round(rect.w); out.height = Math.round(rect.h);
+            out.getContext('2d').drawImage(base, Math.round(rect.x), Math.round(rect.y), out.width, out.height, 0, 0, out.width, out.height);
+            const url = out.toDataURL('image/jpeg', 0.88);
+            finished = true;
+            S.close();
+            onDone(url);
+          }
+        },
+        onClose: () => { if (!finished && ED.active && VIEW_KEYS.includes(ED.tab)) renderTab(ED.tab); },
+      });
+      const range = S.root.querySelector('.crop-range');
+      range.oninput = () => { fine = parseFloat(range.value) || 0; S.root.querySelector('.crop-val').textContent = Angles.fmt(fine) + '°'; build(); S.setImage(base); };
+    });
   }
 
   // Desenha foto, grade, fio de prumo, linhas das medidas, rótulos e pontos.
@@ -564,7 +745,7 @@
     c.save();
     c.translate(tf.x, tf.y);
     c.scale(tf.s, tf.s);
-    c.drawImage(img, 0, 0);
+    if (!opt.noImage) c.drawImage(img, 0, 0);
     if (opt.mask) drawMask(c, key, v, P, u);
     if (opt.grid) {
       c.strokeStyle = 'rgba(0,0,0,0.35)';
@@ -630,7 +811,7 @@
         tagLabel(c, `${m.code} ${Angles.fmtVal(r)}`, at.x + 10 * u, at.y - 10 * u, u);
       }
     });
-    if (!opt.only && (v.free || []).length) drawFreeAngles(c, v.free.map(normFree), u, { labels: !opt.noLabels });
+    if (!opt.only && !opt.noFree && (v.free || []).length) drawFreeAngles(c, v.free.map(normFree), u, { labels: !opt.noLabels });
     if (opt.style === 'apecs' && !opt.noLabels && !opt.only) drawCallouts(c, u, iw, ih, key, v, results);
     const onlyIds = opt.only ? new Set(def.measures.find((m) => m.code === opt.only).pts.flat()) : null;
     Object.entries(P).forEach(([id, p]) => { if (!onlyIds || onlyIds.has(id)) dot(c, p, u, opt.set === 2 ? '#8e44ad' : '#1f78d1', id === opt.sel); });
@@ -853,7 +1034,7 @@
         <option value="tecnico" ${a.tipoLaudo === 'tecnico' ? 'selected' : ''}>Registro técnico (completo, para o avaliador)</option>
         <option value="aluno" ${a.tipoLaudo === 'aluno' ? 'selected' : ''}>Relatório do aluno (resumo em linguagem simples)</option></select></div></div>
       <label style="display:flex;gap:8px;align-items:center;color:var(--ink);margin-top:8px"><input type="checkbox" id="l-mask" style="width:auto" ${a.mascara ? 'checked' : ''}> Ocultar o rosto nas fotos do laudo</label>
-      <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="l-fmov" style="width:auto" ${a.fotosMov ? 'checked' : ''}> Incluir no laudo as fotos dos testes de movimento (o rosto não é ocultado nelas)</label>
+      <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="l-fmov" style="width:auto" ${a.fotosMov ? 'checked' : ''}> Incluir no laudo as fotos dos testes de movimento e dos ângulos livres (o rosto não é ocultado nelas)</label>
       <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="l-val" style="width:auto" ${a.validado ? 'checked' : ''}> Conferi e validei as marcações de todas as vistas</label>
       <p class="muted">${a.validado ? 'Validado em ' + new Date(a.validado.em).toLocaleString('pt-BR') + '. Se você mudar um ponto ou a calibração, a validação é desfeita.' : 'Marque a confirmação para gerar o laudo: as marcações são validadas por quem avalia.'}</p></div>`;
     const bindControls = () => {
@@ -944,11 +1125,13 @@
       const file = inp.files[0];
       if (!file) return;
       const tid = inp.dataset.mvfoto;
-      const photo = await shrinkToDataUrl(file, 1800);
-      (M.fotos[tid] = M.fotos[tid] || []).push({ id: uid(), nome: 'Foto ' + (M.fotos[tid].length + 1), photo, free: [] });
-      ED.movOpen = tid;
-      await DB.put('assessments', ED.a);
-      renderMov();
+      const src = await shrinkToDataUrl(file, 1800);
+      openCrop(src, async (photo) => {
+        (M.fotos[tid] = M.fotos[tid] || []).push({ id: uid(), nome: 'Foto ' + ((M.fotos[tid] || []).length + 1), photo, free: [] });
+        ED.movOpen = tid;
+        await DB.put('assessments', ED.a);
+        renderMov();
+      });
     }));
     const findFoto = (key) => { const [tid, fid] = key.split('|'); return { tid, f: (M.fotos[tid] || []).find((x) => x.id === fid) }; };
     main.querySelectorAll('[data-mvfn]').forEach((el) => (el.oninput = () => { const { f } = findFoto(el.dataset.mvfn); if (f) { f.nome = el.value; saveSoon(); } }));
@@ -987,28 +1170,6 @@
     box.innerHTML = `<summary>Checklist de captura <span class="muted" id="chkn">(${n()} de ${CHECKLIST.length})</span></summary>
       ${CHECKLIST.map(([k, l]) => `<label style="display:flex;gap:8px;align-items:flex-start;color:var(--ink);font-size:14px"><input type="checkbox" data-chk="${k}" style="width:auto;margin-top:3px" ${a.checklist[k] ? 'checked' : ''}> <span>${esc(l)}</span></label>`).join('')}`;
     box.querySelectorAll('[data-chk]').forEach((el) => (el.onchange = () => { a.checklist[el.dataset.chk] = el.checked; saveSoon(); $('#chkn').textContent = `(${n()} de ${CHECKLIST.length})`; }));
-  }
-
-  // ---------- Calibração ----------
-  function renderCalPanel() {
-    const cp = $('#calpanel');
-    if (!cp) return;
-    const key = ED.tab, v = ED.a.views[key];
-    if (v.calib) {
-      const c = v.calib, fmt = Angles.fmt;
-      cp.innerHTML = `<p class="muted">1 cm = ${String(Math.round(c.pxPerCm * 100) / 100).replace('.', ',')} px · referência ${c.orient === 'h' ? 'horizontal' : 'vertical'} de ${esc(c.cm)} cm.<br>${Math.abs(c.rot) >= 0.05 ? 'Inclinação da foto: ' + fmt(Math.abs(c.rot)) + '°' + (c.apply !== false ? ' (corrigida nos ângulos)' : ' (não corrigida)') : 'Foto sem inclinação medida.'}</p>
-        <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="calapply" style="width:auto" ${c.apply !== false ? 'checked' : ''}> Corrigir a inclinação da foto nos ângulos</label>
-        <div class="row" style="margin-top:6px"><button id="calredo">Refazer</button><button class="danger" id="calrm">Remover</button></div>`;
-      $('#calapply').onchange = (e) => { c.apply = e.target.checked; invalidate(); saveSoon(); renderCalPanel(); refreshSide(); draw(); };
-      $('#calredo').onclick = () => { ED.lastCalCm = c.cm; ED.lastCalOri = c.orient; v.calib = null; invalidate(); saveSoon(); renderCalPanel(); refreshSide(); draw(); };
-      $('#calrm').onclick = () => { v.calib = null; invalidate(); saveSoon(); renderCalPanel(); refreshSide(); draw(); };
-    } else {
-      cp.innerHTML = `<p class="muted">Toque nas duas marcas do fio de prumo (ou de uma régua) com distância real conhecida. Isso dá a escala em cm e corrige a foto inclinada.</p>
-        <div class="grid2"><div><label>Distância real (cm)</label><input id="calcm" inputmode="decimal" value="${esc(ED.lastCalCm || 100)}"></div>
-        <div><label>Referência</label><select id="calori"><option value="v" ${ED.lastCalOri !== 'h' ? 'selected' : ''}>Fio de prumo (vertical)</option><option value="h" ${ED.lastCalOri === 'h' ? 'selected' : ''}>Régua (horizontal)</option></select></div></div>
-        <button id="calgo" ${v.photo ? '' : 'disabled'}>Marcar as 2 marcas na foto</button>`;
-      $('#calgo').onclick = () => setTool('calib');
-    }
   }
 
   // ---------- Evolução: antes e depois, gráfico e animação ----------
@@ -1386,225 +1547,186 @@
   }
 
   // cfg: { title, photo (dataURL), free (lista alterada no lugar), onChange(), back() }
+  // Tela cheia só com a foto e os ângulos livres: nada de pontos da avaliação postural.
   function openFreeWorkspace(cfg) {
     cfg.free.forEach(normFree);
-    const W = { img: null, tf: { s: 1, x: 0, y: 0 }, grid: true, sel: null, adding: null, ptrs: new Map(), drag: null, pinch: null, loupe: null, undo: [], step: 1, nudge: null, alive: true, hold: null };
-    setHeader(cfg.title, () => { W.alive = false; cfg.back(); });
-    main.innerHTML = `<div class="editor"><div>
-        <div class="tools"><button id="fw-undo">↶ Desfazer</button><button id="fw-delpt">Apagar ponto</button><button id="fw-zin">+</button><button id="fw-zout">−</button><button id="fw-fit">Ajustar</button><button id="fw-grid" class="on">Grade</button></div>
-        <div class="stage" id="fw-stage"><canvas id="fw-cv"></canvas></div>
-        <p class="muted" id="fw-hint"></p></div>
-      <div>
-        <h3>Novo ângulo</h3>
-        <div class="row"><button class="primary" id="fw-add3">+ Ângulo de 3 pontos</button><button id="fw-addh">+ Linha × horizontal</button><button id="fw-addv">+ Linha × vertical</button></div>
-        <p class="muted">Cada ângulo tem nome, pode ser ajustado quantas vezes quiser e não interfere na marcação postural.</p>
-        <div id="fw-list"></div>
-        <h3>Ajuste fino do ponto selecionado</h3>
-        <div class="row"><label style="margin:0">Passo</label><select id="fw-step" style="width:auto"><option value="0.5">0,5 px</option><option value="1" selected>1 px</option><option value="3">3 px</option></select></div>
-        <div class="nudge"><span></span><button data-nd="0,-1">▲</button><span></span><button data-nd="-1,0">◀</button><span class="muted" style="text-align:center">segure</span><button data-nd="1,0">▶</button><span></span><button data-nd="0,1">▼</button><span></span></div>
-      </div></div>`;
-    const cv = $('#fw-cv');
-    let g;
-    const size = () => {
-      const w = $('#fw-stage').clientWidth, h = Math.max(380, Math.min(window.innerHeight - 200, 1100)), dpr = window.devicePixelRatio || 1;
-      cv.width = w * dpr; cv.height = h * dpr; cv.style.height = h + 'px';
-      g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-    const fit = () => { const w = cv.clientWidth, h = cv.clientHeight, iw = W.img.naturalWidth, ih = W.img.naturalHeight, s = Math.min(w / iw, h / ih); W.tf = { s, x: (w - iw * s) / 2, y: (h - ih * s) / 2 }; };
-    const toImg = (p) => ({ x: (p.x - W.tf.x) / W.tf.s, y: (p.y - W.tf.y) / W.tf.s });
-    const evPos = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    const W = { sel: null, adding: null, undo: [], step: 1, nudgeOn: false, drag0: null, tn: null, hold: null, holdT: null };
     const changed = () => { cfg.onChange && cfg.onChange(); };
-
-    const render = (ctx, tf, loupe) => {
-      ctx.save();
-      ctx.translate(tf.x, tf.y); ctx.scale(tf.s, tf.s);
-      ctx.drawImage(W.img, 0, 0);
-      if (W.grid && !loupe) {
-        ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1 / tf.s;
-        const iw = W.img.naturalWidth, ih = W.img.naturalHeight, step = iw / 12;
-        ctx.beginPath();
-        for (let x = step; x < iw; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, ih); }
-        for (let y = step; y < ih; y += step) { ctx.moveTo(0, y); ctx.lineTo(iw, y); }
-        ctx.stroke();
-      }
-      drawFreeAngles(ctx, cfg.free, 1 / tf.s, { sel: W.sel, labels: !loupe, numbers: !loupe });
-      ctx.restore();
-    };
-    const draw = () => {
-      if (!W.img || !g) return;
-      const w = cv.clientWidth, h = cv.clientHeight;
-      g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
-      render(g, W.tf, false);
-      if (W.loupe) {
-        const R = 70, Z = 3, { p, q } = W.loupe;
-        const cx = p.x < 2 * R + 40 && p.y < 2 * R + 40 ? w - R - 12 : R + 12, cy = R + 12;
-        g.save(); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.clip();
-        g.fillStyle = '#000'; g.fillRect(cx - R, cy - R, 2 * R, 2 * R);
-        const s = W.tf.s * Z;
-        render(g, { s, x: cx - q.x * s, y: cy - q.y * s }, true);
-        g.restore();
-        g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2);
-        g.moveTo(cx - 12, cy); g.lineTo(cx + 12, cy); g.moveTo(cx, cy - 12); g.lineTo(cx, cy + 12); g.stroke();
-      }
-    };
-    const hitTest = (q, radiusPx) => {
-      let best = null, bd = radiusPx / W.tf.s;
-      cfg.free.forEach((f, ai) => f.pts.forEach((p, pi) => { if (!p) return; const d = Math.hypot(p.x - q.x, p.y - q.y); if (d < bd) { bd = d; best = { ai, pi }; } }));
-      return best;
-    };
-    const hint = () => {
-      const el = $('#fw-hint');
-      if (!el) return;
-      if (W.adding != null && cfg.free[W.adding]) {
-        const f = cfg.free[W.adding], i = freeHole(f), t = FREE_TIPOS[f.tipo];
-        el.textContent = i >= 0 ? `Toque na foto: ${t.dicas[i]} de "${f.label}" (${i + 1} de ${t.n}). Pode errar: use Desfazer ou Apagar ponto.` : '';
-      } else if (W.sel) el.textContent = 'Ponto selecionado: arraste para ajustar, use as setas para mexer bem devagar, ou toque em Apagar ponto para marcar de novo.';
-      else el.textContent = 'Toque num ponto para ajustá-lo. Arraste o fundo para mover a foto e use dois dedos para aproximar.';
-    };
-    const renderList = () => {
-      const box = $('#fw-list');
-      if (!box) return;
-      box.innerHTML = cfg.free.length ? cfg.free.map((f, ai) => {
-        const fv = Angles.freeValue(f), t = FREE_TIPOS[f.tipo], filled = f.pts.filter(Boolean).length;
-        const isSel = W.sel && W.sel.ai === ai;
-        return `<div class="card" style="padding:10px;margin-bottom:8px;${isSel || W.adding === ai ? 'border-color:var(--accent)' : ''}">
-          <input data-fl="${ai}" value="${esc(f.label)}">
-          <div class="row" style="justify-content:space-between;margin-top:4px"><span class="muted">${esc(t.nome)}</span><span style="font-size:18px"><b>${fv ? Angles.fmt(fv.value) + '°' : 'incompleto'}</b></span></div>
-          ${fv ? `<div class="muted">${esc(fv.text)}</div>` : `<div class="warn">${filled} de ${t.n} pontos</div>`}
-          <div class="row" style="margin-top:6px">${f.pts.slice(0, t.n).map((p, pi) => `<button data-fp="${ai},${pi}" class="${W.sel && W.sel.ai === ai && W.sel.pi === pi ? 'on' : ''}" ${p ? '' : 'disabled'}>${pi + 1}</button>`).join('')}
-            <button data-fredo="${ai}">Refazer</button><button class="danger" data-fdel="${ai}">Apagar</button></div></div>`;
-      }).join('') : '<p class="muted">Nenhum ângulo ainda. Escolha um tipo acima e toque na foto.</p>';
-      box.querySelectorAll('[data-fl]').forEach((el) => (el.oninput = () => { cfg.free[+el.dataset.fl].label = el.value; changed(); draw(); }));
-      box.querySelectorAll('[data-fp]').forEach((b) => (b.onclick = () => { const [ai, pi] = b.dataset.fp.split(',').map(Number); W.sel = { ai, pi }; W.nudge = null; renderList(); hint(); draw(); }));
-      box.querySelectorAll('[data-fredo]').forEach((b) => (b.onclick = () => { const ai = +b.dataset.fredo, f = cfg.free[ai]; f.pts = f.pts.map(() => null); W.adding = ai; W.sel = null; changed(); renderList(); hint(); draw(); }));
-      box.querySelectorAll('[data-fdel]').forEach((b) => (b.onclick = () => {
-        const ai = +b.dataset.fdel;
-        if (!confirm(`Apagar o ângulo "${cfg.free[ai].label}"?`)) return;
-        cfg.free.splice(ai, 1); W.sel = null; W.adding = null; changed(); renderList(); hint(); draw();
-      }));
-    };
-    const addAngle = (tipo) => {
-      const t = FREE_TIPOS[tipo], f = normFree({ tipo, label: `${t.rot} ${cfg.free.length + 1}`, pts: [] });
-      cfg.free.push(f); W.adding = cfg.free.length - 1; W.sel = null; W.nudge = null;
-      changed(); renderList(); hint(); draw();
-    };
     const pushUndo = (f, pi, prev) => { W.undo.push({ f, pi, prev: prev ? { ...prev } : null }); if (W.undo.length > 200) W.undo.shift(); };
-
-    $('#fw-add3').onclick = () => addAngle('3pt');
-    $('#fw-addh').onclick = () => addAngle('h');
-    $('#fw-addv').onclick = () => addAngle('v');
-    $('#fw-undo').onclick = () => {
-      const e = W.undo.pop();
-      if (!e) return alert('Nada para desfazer.');
-      const ai = cfg.free.indexOf(e.f);
-      if (ai < 0) return;
-      e.f.pts[e.pi] = e.prev;
-      W.sel = { ai, pi: e.pi }; W.nudge = null;
-      if (!e.prev) W.adding = ai;
-      changed(); renderList(); hint(); draw();
-    };
-    $('#fw-delpt').onclick = () => {
-      if (!W.sel) return alert('Toque num ponto (na foto ou nos botões 1, 2, 3 do ângulo) para selecioná-lo e depois apague.');
-      const f = cfg.free[W.sel.ai];
-      if (!f || !f.pts[W.sel.pi]) return;
-      pushUndo(f, W.sel.pi, f.pts[W.sel.pi]);
-      f.pts[W.sel.pi] = null; W.adding = W.sel.ai; W.nudge = null;
-      changed(); renderList(); hint(); draw();
-    };
-    $('#fw-zin').onclick = () => { zoomAt(1.4); };
-    $('#fw-zout').onclick = () => { zoomAt(1 / 1.4); };
-    $('#fw-fit').onclick = () => { fit(); draw(); };
-    $('#fw-grid').onclick = () => { W.grid = !W.grid; $('#fw-grid').classList.toggle('on', W.grid); draw(); };
-    $('#fw-step').onchange = (e) => { W.step = +e.target.value; };
-    const zoomAt = (f, cx, cy) => {
-      cx = cx == null ? cv.clientWidth / 2 : cx; cy = cy == null ? cv.clientHeight / 2 : cy;
-      const t = W.tf; t.x = cx - (cx - t.x) * f; t.y = cy - (cy - t.y) * f; t.s *= f; draw();
-    };
-    const nudgeOnce = (dx, dy) => {
-      if (!W.sel) return false;
-      const f = cfg.free[W.sel.ai], p = f && f.pts[W.sel.pi];
-      if (!p) return false;
-      if (!W.nudge || W.nudge.f !== f || W.nudge.pi !== W.sel.pi) { pushUndo(f, W.sel.pi, p); W.nudge = { f, pi: W.sel.pi }; }
-      p.x += dx * W.step; p.y += dy * W.step;
-      changed(); renderList(); draw();
-      return true;
-    };
-    main.querySelectorAll('[data-nd]').forEach((b) => {
-      const [dx, dy] = b.dataset.nd.split(',').map(Number);
-      const stop = () => { clearInterval(W.hold); clearTimeout(W.holdT); W.hold = null; };
-      b.onpointerdown = (e) => {
-        e.preventDefault();
-        if (!nudgeOnce(dx, dy)) { alert('Selecione um ponto (toque nele na foto ou nos botões 1, 2, 3).'); return; }
-        W.holdT = setTimeout(() => { W.hold = setInterval(() => nudgeOnce(dx, dy), 70); }, 350);
-      };
-      b.onpointerup = b.onpointerleave = b.onpointercancel = stop;
-    });
-
-    cv.onpointerdown = (e) => {
-      cv.setPointerCapture(e.pointerId);
-      const p = evPos(e);
-      W.ptrs.set(e.pointerId, p);
-      W.nudge = null;
-      if (W.ptrs.size === 2) {
-        const [a, b] = [...W.ptrs.values()];
-        W.drag = null; W.loupe = null;
-        W.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), c: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, tf: { ...W.tf } };
-        return;
-      }
-      const q = toImg(p), hit = hitTest(q, 26);
-      if (hit) {
-        W.sel = hit;
-        W.drag = { pt: hit, prev: { ...cfg.free[hit.ai].pts[hit.pi] }, moved: false };
-        W.loupe = { p, q };
-      } else if (W.adding != null && cfg.free[W.adding] && freeHole(cfg.free[W.adding]) >= 0) {
-        const f = cfg.free[W.adding], pi = freeHole(f);
-        f.pts[pi] = q;
-        W.sel = { ai: W.adding, pi };
-        W.drag = { pt: W.sel, prev: null, moved: true, placed: true };
-        W.loupe = { p, q };
-      } else {
-        W.drag = { pan: p, tf: { ...W.tf } };
-      }
-      renderList(); hint(); draw();
-    };
-    cv.onpointermove = (e) => {
-      if (!W.ptrs.has(e.pointerId)) return;
-      const p = evPos(e);
-      W.ptrs.set(e.pointerId, p);
-      if (W.pinch && W.ptrs.size === 2) {
-        const [a, b] = [...W.ptrs.values()];
-        const d = Math.hypot(a.x - b.x, a.y - b.y), c = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, t0 = W.pinch.tf, f = d / W.pinch.d;
-        W.tf = { s: t0.s * f, x: c.x - (W.pinch.c.x - t0.x) * f, y: c.y - (W.pinch.c.y - t0.y) * f };
-        draw();
-        return;
-      }
-      if (!W.drag) return;
-      if (W.drag.pan) { W.tf.x = W.drag.tf.x + p.x - W.drag.pan.x; W.tf.y = W.drag.tf.y + p.y - W.drag.pan.y; }
-      else if (W.drag.pt) {
-        const q = toImg(p), f = cfg.free[W.drag.pt.ai];
-        if (!f) return;
-        f.pts[W.drag.pt.pi] = q; W.drag.moved = true; W.loupe = { p, q };
-      }
-      draw();
-    };
-    const up = (e) => {
-      W.ptrs.delete(e.pointerId);
-      if (W.ptrs.size < 2) W.pinch = null;
-      if (W.drag && W.drag.pt) {
-        const f = cfg.free[W.drag.pt.ai];
-        if (f && W.drag.moved) {
-          const cur = f.pts[W.drag.pt.pi];
-          if (W.drag.placed || (W.drag.prev && cur && Math.hypot(cur.x - W.drag.prev.x, cur.y - W.drag.prev.y) > 0.5 / W.tf.s)) pushUndo(f, W.drag.pt.pi, W.drag.prev);
-          if (W.drag.placed && freeHole(f) < 0) W.adding = null;
-          changed();
+    loadImg(cfg.photo).then((img) => {
+      const S = makeStage({
+        img,
+        title: cfg.title,
+        overlayHtml: '<div class="fs-pill"></div><div class="fs-nudge" hidden></div>',
+        leftHtml: fsBtn('grid', ICON.grid, 'Grade') + fsBtn('contrast', ICON.contrast, 'Contraste'),
+        rightHtml: fsBtn('move', ICON.move, 'Mover') + fsBtn('list', ICON.list, 'Ângulos') + fsBtn('fit', ICON.fit, 'Ajustar'),
+        bottomHtml: fsBtn('undo', ICON.back, 'Desfazer') + fsBtn('new', ICON.plus, 'Novo ângulo', 'primary') + fsBtn('redo', ICON.redo, 'Refazer ponto') + fsBtn('nudge', ICON.nudge, 'Ajuste fino'),
+        drawOverlay: (c, tf, loupe) => { c.save(); c.translate(tf.x, tf.y); c.scale(tf.s, tf.s); drawFreeAngles(c, cfg.free, 1 / tf.s, { sel: W.sel, labels: !loupe, numbers: !loupe }); c.restore(); },
+        hit: (q, r) => {
+          let best = null, bd = r;
+          cfg.free.forEach((f, ai) => f.pts.forEach((p, pi) => { if (!p) return; const d = Math.hypot(p.x - q.x, p.y - q.y); if (d < bd) { bd = d; best = { ai, pi }; } }));
+          return best;
+        },
+        start: (t) => { W.sel = t; W.tn = null; W.drag0 = { ...cfg.free[t.ai].pts[t.pi] }; ui(); },
+        place: (q) => {
+          if (W.adding == null) return null;
+          const f = cfg.free[W.adding];
+          if (!f) return null;
+          const pi = freeHole(f);
+          if (pi < 0) { W.adding = null; return null; }
+          f.pts[pi] = q; W.sel = { ai: W.adding, pi }; W.tn = null;
+          return { ai: W.adding, pi };
+        },
+        move: (t, q) => { const f = cfg.free[t.ai]; if (f) f.pts[t.pi] = q; },
+        end: (t, moved, placed) => {
+          const f = cfg.free[t.ai];
+          if (f && placed) { pushUndo(f, t.pi, null); if (freeHole(f) < 0) W.adding = null; changed(); }
+          else if (f && moved && W.drag0) { const cur = f.pts[t.pi]; if (cur && Math.hypot(cur.x - W.drag0.x, cur.y - W.drag0.y) > 0.5) { pushUndo(f, t.pi, W.drag0); changed(); } }
+          W.drag0 = null;
+          ui();
+        },
+        cancel: (d) => { if (d.placed) { const f = cfg.free[d.t.ai]; if (f) f.pts[d.t.pi] = null; } },
+        action: (act) => {
+          if (act === 'undo') {
+            const e = W.undo.pop();
+            if (!e) return S.toast('Nada para desfazer.');
+            const ai = cfg.free.indexOf(e.f);
+            if (ai < 0) return;
+            e.f.pts[e.pi] = e.prev; W.sel = { ai, pi: e.pi }; W.tn = null;
+            if (!e.prev) W.adding = ai;
+            changed(); ui();
+          } else if (act === 'new') {
+            const m = S.modal(`<h2>Novo ângulo</h2><div class="col">
+              <button class="primary" data-t="3pt">Ângulo de 3 pontos<small>O 2º ponto é o vértice</small></button>
+              <button data-t="h">Linha × horizontal<small>Inclinação de um segmento</small></button>
+              <button data-t="v">Linha × vertical<small>Desvio de um segmento</small></button>
+              <button data-t="x">Cancelar</button></div>`);
+            m.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => {
+              S.closeModal();
+              if (b.dataset.t === 'x') return;
+              const t = FREE_TIPOS[b.dataset.t], f = normFree({ tipo: b.dataset.t, label: `${t.rot} ${cfg.free.length + 1}`, pts: [] });
+              cfg.free.push(f); W.adding = cfg.free.length - 1; W.sel = null; W.tn = null;
+              changed(); ui();
+              S.toast('Toque na foto para marcar o 1º ponto. Pode errar: use Desfazer.', 3500);
+            }));
+          } else if (act === 'redo') {
+            if (!W.sel) return S.toast('Toque num ponto para selecioná-lo e depois use "Refazer ponto".');
+            const f = cfg.free[W.sel.ai];
+            if (!f || !f.pts[W.sel.pi]) return;
+            pushUndo(f, W.sel.pi, f.pts[W.sel.pi]);
+            f.pts[W.sel.pi] = null; W.adding = W.sel.ai; W.tn = null;
+            changed(); ui();
+            S.toast('Toque na foto para marcar o ponto de novo.');
+          } else if (act === 'nudge') {
+            if (!W.sel) return S.toast('Toque num ponto para selecioná-lo e depois use o ajuste fino.');
+            W.nudgeOn = !W.nudgeOn; ui();
+          } else if (act === 'list') {
+            listOpen = !listOpen;
+            renderList();
+          }
+        },
+        onClose: () => { clearInterval(W.hold); clearTimeout(W.holdT); cfg.back(); },
+      });
+      let listOpen = false;
+      const hintText = () => {
+        if (W.adding != null && cfg.free[W.adding] && freeHole(cfg.free[W.adding]) >= 0) {
+          const f = cfg.free[W.adding], i = freeHole(f), t = FREE_TIPOS[f.tipo];
+          return `Toque na foto: ${t.dicas[i]} de "${f.label}" (${i + 1} de ${t.n})`;
         }
-      }
-      W.drag = null; W.loupe = null;
-      renderList(); hint(); draw();
+        if (W.sel) return 'Ponto selecionado: arraste para ajustar, use o ajuste fino ou "Refazer ponto"';
+        return cfg.free.length ? 'Toque num ponto para ajustá-lo, ou em "Novo ângulo"' : 'Toque em "Novo ângulo" para começar';
+      };
+      const renderNudge = () => {
+        const box = S.root.querySelector('.fs-nudge');
+        box.hidden = !(W.nudgeOn && W.sel);
+        if (box.hidden) return;
+        if (!box.firstChild) {
+          box.innerHTML = `<div class="nudge"><span></span><button data-nd="0,-1">▲</button><span></span><button data-nd="-1,0">◀</button><select class="nd-step"><option value="0.5">0,5 px</option><option value="1" selected>1 px</option><option value="3">3 px</option></select><button data-nd="1,0">▶</button><span></span><button data-nd="0,1">▼</button><span></span></div>`;
+          const once = (dx, dy) => {
+            if (!W.sel) return false;
+            const f = cfg.free[W.sel.ai], p = f && f.pts[W.sel.pi];
+            if (!p) return false;
+            if (!W.tn || W.tn.f !== f || W.tn.pi !== W.sel.pi) { pushUndo(f, W.sel.pi, p); W.tn = { f, pi: W.sel.pi }; }
+            p.x += dx * W.step; p.y += dy * W.step;
+            changed(); S.draw();
+            return true;
+          };
+          box.querySelector('.nd-step').onchange = (e) => { W.step = +e.target.value; };
+          box.querySelectorAll('[data-nd]').forEach((b) => {
+            const [dx, dy] = b.dataset.nd.split(',').map(Number);
+            const stop = () => { clearInterval(W.hold); clearTimeout(W.holdT); };
+            b.onpointerdown = (e) => { e.preventDefault(); if (!once(dx, dy)) return; W.holdT = setTimeout(() => { W.hold = setInterval(() => once(dx, dy), 70); }, 350); };
+            b.onpointerup = b.onpointerleave = b.onpointercancel = () => { stop(); ui(); };
+          });
+        }
+      };
+      const renderList = () => {
+        if (!listOpen) { S.drawer(null); return; }
+        const d = S.drawer(`<div class="row" style="justify-content:space-between"><h3 style="margin:0">Ângulos</h3><button data-dr="x">Fechar</button></div>
+          ${cfg.free.length ? cfg.free.map((f, ai) => {
+            const fv = Angles.freeValue(f), t = FREE_TIPOS[f.tipo], filled = f.pts.filter(Boolean).length;
+            return `<div class="dr-card ${W.sel && W.sel.ai === ai ? 'cur' : ''}"><input data-fl="${ai}" value="${esc(f.label)}">
+              <div class="row" style="justify-content:space-between;margin-top:4px"><span class="muted">${esc(t.nome)}</span><b style="font-size:18px">${fv ? Angles.fmt(fv.value) + '°' : filled + ' de ' + t.n + ' pontos'}</b></div>
+              ${fv ? `<div class="muted">${esc(fv.text)}</div>` : ''}
+              <div class="row" style="margin-top:6px">${f.pts.slice(0, t.n).map((p, pi) => `<button data-fp="${ai},${pi}" ${p ? '' : 'disabled'} class="${W.sel && W.sel.ai === ai && W.sel.pi === pi ? 'on' : ''}">${pi + 1}</button>`).join('')}<button data-fredo="${ai}">Refazer</button><button class="danger" data-fdel="${ai}">Apagar</button></div></div>`;
+          }).join('') : '<p class="muted">Nenhum ângulo ainda.</p>'}`);
+        d.querySelector('[data-dr="x"]').onclick = () => { listOpen = false; renderList(); };
+        d.querySelectorAll('[data-fl]').forEach((el) => (el.oninput = () => { cfg.free[+el.dataset.fl].label = el.value; changed(); S.draw(); }));
+        d.querySelectorAll('[data-fp]').forEach((b) => (b.onclick = () => { const [ai, pi] = b.dataset.fp.split(',').map(Number); W.sel = { ai, pi }; W.tn = null; ui(); }));
+        d.querySelectorAll('[data-fredo]').forEach((b) => (b.onclick = () => { const ai = +b.dataset.fredo, f = cfg.free[ai]; f.pts = f.pts.map(() => null); W.adding = ai; W.sel = null; changed(); ui(); S.toast('Toque na foto para marcar o 1º ponto.'); }));
+        d.querySelectorAll('[data-fdel]').forEach((b) => (b.onclick = () => {
+          const ai = +b.dataset.fdel;
+          if (!confirm(`Apagar o ângulo "${cfg.free[ai].label}"?`)) return;
+          cfg.free.splice(ai, 1); W.sel = null; W.adding = null; changed(); ui();
+        }));
+      };
+      const ui = () => {
+        S.root.querySelector('.fs-pill').textContent = hintText();
+        S.setSub(`${cfg.free.filter((f) => Angles.freeValue(f)).length} de ${cfg.free.length} ângulos completos`);
+        renderNudge();
+        if (listOpen) renderList();
+        S.draw();
+      };
+      ui();
+    });
+  }
+
+  // ---------- Ângulos livres avulsos: qualquer foto, sem relação com a avaliação postural ----------
+  function renderLivres() {
+    const a = ED.a;
+    a.livres = a.livres || [];
+    main.innerHTML = `${tabsHtml()}
+      <div class="card"><h2>Ângulos livres</h2>
+        <p class="muted">Para medir qualquer ângulo em qualquer foto, fora do protocolo postural e dos testes de movimento. Cada foto abre numa tela só dela.</p>
+        <div class="row"><label class="btn" style="margin:0;color:var(--ink)">Adicionar foto<input type="file" accept="image/*" id="lv-file" hidden></label></div></div>
+      ${a.livres.map((f) => {
+        const vals = (f.free || []).map((x) => ({ x, fv: Angles.freeValue(x) })).filter((o) => o.fv);
+        return `<div class="card"><div class="row" style="align-items:flex-start"><img src="${f.photo}" alt="" style="height:96px;border-radius:8px">
+          <div style="flex:1;min-width:180px"><input data-lfn="${f.id}" value="${esc(f.nome)}">
+            <div class="muted" style="margin-top:6px">${vals.length ? vals.map((o) => `${esc(o.x.label)} <b>${Angles.fmt(o.fv.value)}°</b>`).join(' · ') : 'Nenhum ângulo medido ainda.'}</div></div></div>
+          <div class="row" style="margin-top:8px"><button class="primary" data-lmed="${f.id}">Medir ângulos</button><button data-lcrop="${f.id}">Cortar ou girar</button><button class="danger" data-ldel="${f.id}">Apagar foto</button></div></div>`;
+      }).join('')}`;
+    bindTabs();
+    const find = (id) => a.livres.find((x) => x.id === id);
+    $('#lv-file').onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const src = await shrinkToDataUrl(file, 1800);
+      openCrop(src, async (out) => {
+        a.livres.push({ id: uid(), nome: 'Foto ' + (a.livres.length + 1), photo: out, free: [] });
+        await DB.put('assessments', ED.a);
+        renderLivres();
+      });
     };
-    cv.onpointerup = up; cv.onpointercancel = up;
-    window.addEventListener('resize', () => { if (W.alive && W.img) { size(); draw(); } });
-    loadImg(cfg.photo).then((img) => { W.img = img; size(); fit(); renderList(); hint(); draw(); });
+    main.querySelectorAll('[data-lfn]').forEach((el) => (el.oninput = () => { const f = find(el.dataset.lfn); if (f) { f.nome = el.value; saveSoon(); } }));
+    main.querySelectorAll('[data-lmed]').forEach((b) => (b.onclick = () => { const f = find(b.dataset.lmed); if (f) openFreeWorkspace({ title: 'Ângulos livres — ' + f.nome, photo: f.photo, free: f.free, onChange: saveSoon, back: () => renderTab('livres') }); }));
+    main.querySelectorAll('[data-lcrop]').forEach((b) => (b.onclick = () => {
+      const f = find(b.dataset.lcrop);
+      if (!f) return;
+      if ((f.free || []).length && !confirm('Cortar ou girar a foto apaga os ângulos já medidos nela. Continuar?')) return;
+      openCrop(f.photo, async (out) => { f.photo = out; f.free = []; await DB.put('assessments', ED.a); renderLivres(); });
+    }));
+    main.querySelectorAll('[data-ldel]').forEach((b) => (b.onclick = () => { if (!confirm('Apagar esta foto e os ângulos medidos nela?')) return; a.livres = a.livres.filter((x) => x.id !== b.dataset.ldel); saveSoon(); renderLivres(); }));
   }
 
   // Imagem com os ângulos desenhados (para o laudo).
