@@ -165,9 +165,9 @@
     $('#nova').onclick = async () => {
       const a = newAssessment(id);
       await DB.put('assessments', a);
-      openEditor(a.id, 'ant');
+      openEditor(a.id, 'home');
     };
-    main.querySelectorAll('.list a').forEach((el) => (el.onclick = (e) => { e.preventDefault(); openEditor(el.dataset.id, 'ant'); }));
+    main.querySelectorAll('.list a').forEach((el) => (el.onclick = (e) => { e.preventDefault(); openEditor(el.dataset.id, 'home'); }));
   }
 
   function newAssessment(studentId) {
@@ -214,11 +214,11 @@
     ED.s = await DB.get('students', ED.a.studentId);
     ED.active = true;
     setHeader(ED.s.nome + ' · ' + fmtDate(ED.a.data), () => showStudent(ED.s.id));
-    renderTab(tab || 'ant');
+    renderTab(tab || 'home');
   }
 
   function tabsHtml() {
-    const t = [['ant', 'Anterior'], ['post', 'Posterior'], ['latD', 'Lateral D'], ['latE', 'Lateral E'], ['res', 'Resultados'], ['evol', 'Evolução'], ['mov', 'Movimento'], ['livres', 'Ângulos livres'], ['ficha', 'Ficha e conduta'], ['laudo', 'Laudo']];
+    const t = [['home', 'Início'], ['ant', 'Anterior'], ['post', 'Posterior'], ['latD', 'Lateral D'], ['latE', 'Lateral E'], ['res', 'Resultados'], ['evol', 'Evolução'], ['mov', 'Movimento'], ['livres', 'Ângulos livres'], ['ficha', 'Ficha e conduta'], ['laudo', 'Laudo']];
     return `<div class="tabs">${t.map(([k, l]) => `<button data-tab="${k}" class="${ED.tab === k ? 'primary' : ''}">${l}</button>`).join('')}</div>`;
   }
 
@@ -227,8 +227,10 @@
     ED.sel = null;
     ED.freeTmp = null;
     ED.tool = 'mark';
+    if (tab !== 'res') ED.onlyView = null;
     if (ED.stopAnim) { ED.stopAnim(); ED.stopAnim = null; }
     if (VIEW_KEYS.includes(tab)) renderView(tab);
+    else if (tab === 'home') renderInicio();
     else if (tab === 'res') renderResults();
     else if (tab === 'evol') renderEvol();
     else if (tab === 'mov') renderMov();
@@ -238,6 +240,73 @@
     bindTabs();
   }
   const bindTabs = () => main.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => renderTab(b.dataset.tab)));
+
+  // ---------- Início da avaliação: cartões por modo ----------
+  const LICON = {
+    postura: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="9" r="5"/><path d="M32 14v22M20 20h24M32 36l-8 22M32 36l8 22"/><circle cx="20" cy="20" r="1.6" fill="currentColor"/><circle cx="44" cy="20" r="1.6" fill="currentColor"/><circle cx="25" cy="36" r="1.6" fill="currentColor"/><circle cx="39" cy="36" r="1.6" fill="currentColor"/></svg>',
+    rapida: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="6" width="36" height="52" rx="5"/><circle cx="32" cy="18" r="4"/><path d="M32 22v14M24 27h16M32 36l-6 14M32 36l6 14"/><circle cx="32" cy="29" r="9" stroke-dasharray="3 4"/></svg>',
+    angulos: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 50L40 20M12 50h42"/><path d="M26 50a14 14 0 0 0-6-12" /><circle cx="12" cy="50" r="3" fill="currentColor"/><circle cx="40" cy="20" r="3" fill="currentColor"/><circle cx="54" cy="50" r="3" fill="currentColor"/></svg>',
+    movimento: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="26" cy="12" r="5"/><path d="M26 17l6 14 14 4M32 31l-8 8 10 6M20 22l-8-10M36 22l8-10M8 56h48"/></svg>',
+    resultados: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 54V10M10 54h46M18 44l12-14 8 8 14-18"/></svg>',
+    evolucao: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="12" width="20" height="40" rx="3"/><rect x="36" y="12" width="20" height="40" rx="3"/><path d="M30 32h4M32 30l2 2-2 2"/></svg>',
+    ficha: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="8" width="40" height="48" rx="4"/><path d="M20 22h24M20 32h24M20 42h14"/></svg>',
+    laudo: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 6h22l12 12v40H16z"/><path d="M38 6v12h12M24 32h18M24 42h18"/></svg>',
+  };
+
+  function renderInicio() {
+    const a = ED.a;
+    const fotos = VIEW_KEYS.filter((k) => a.views[k].photo).length;
+    const marcadas = VIEW_KEYS.filter((k) => Object.keys(a.views[k].pts).length).length;
+    const nMov = (typeof Mov !== 'undefined' ? Mov.summarize(a.mov).tests.length : 0) + Object.values((a.mov && a.mov.fotos) || {}).reduce((n, l) => n + (l || []).length, 0);
+    const nLiv = (a.livres || []).length;
+    const big = [
+      ['postura', 'Postura completa', `${fotos} de 4 vistas com foto · ${marcadas} marcadas`, () => renderTab('ant')],
+      ['rapida', 'Análise rápida', 'Uma vista, em poucos toques', startQuick],
+      ['angulos', 'Amplitude e ângulos', nLiv ? `${nLiv} foto(s) com ângulos livres` : 'Meça qualquer ângulo em qualquer foto', () => renderTab('livres')],
+      ['movimento', 'Testes de movimento', nMov ? `${nMov} registro(s)` : 'Agachamento overhead, step-down e outros', () => renderTab('mov')],
+    ];
+    const small = [
+      ['resultados', 'Resultados', 'res'], ['evolucao', 'Evolução', 'evol'], ['ficha', 'Ficha e conduta', 'ficha'], ['laudo', 'Laudo', 'laudo'],
+    ];
+    main.innerHTML = `${tabsHtml()}
+      <div class="launch">${big.map(([k, t, s], i) => `<button class="lcard" data-lbig="${i}"><span class="lic">${LICON[k]}</span><b>${esc(t)}</b><small>${esc(s)}</small></button>`).join('')}</div>
+      <div class="launch small">${small.map(([k, t], i) => `<button class="lcard" data-lsm="${i}"><span class="lic">${LICON[k]}</span><b>${esc(t)}</b></button>`).join('')}</div>`;
+    main.querySelectorAll('[data-lbig]').forEach((b) => (b.onclick = () => big[+b.dataset.lbig][3]()));
+    main.querySelectorAll('[data-lsm]').forEach((b) => (b.onclick = () => renderTab(small[+b.dataset.lsm][2])));
+  }
+
+  // Janela simples por cima de tudo.
+  function showSheet(html) {
+    const el = document.createElement('div');
+    el.className = 'sheet';
+    el.innerHTML = `<div class="box">${html}</div>`;
+    document.body.appendChild(el);
+    el.close = () => el.remove();
+    return el;
+  }
+
+  // Análise rápida: uma vista, da foto ao resultado.
+  function startQuick() {
+    const sh = showSheet(`<h2>Análise rápida</h2><p class="muted">Escolha a vista. O app pede a foto, abre o corte e a marcação, e mostra só o resultado dela.</p>
+      <div class="col">${VIEW_KEYS.map((k) => `<button data-q="${k}"><b>${esc(Angles.VIEWS[k].label)}</b>${ED.a.views[k].photo ? '<small>já tem foto: pode marcar nela ou trocar</small>' : ''}</button>`).join('')}<button data-q="x">Cancelar</button></div>`);
+    sh.querySelectorAll('[data-q]').forEach((b) => (b.onclick = () => {
+      const key = b.dataset.q;
+      if (key === 'x') return sh.close();
+      const v = ED.a.views[key];
+      const pickPhoto = () => {
+        const inp = document.createElement('input');
+        inp.type = 'file'; inp.accept = 'image/*';
+        inp.onchange = () => { if (inp.files[0]) { ED.quickView = key; loadPhoto(key, inp.files[0], { thenMark: true }); } };
+        inp.click();
+      };
+      if (v.photo) {
+        sh.querySelector('.box').innerHTML = `<h2>${esc(Angles.VIEWS[key].label)}</h2><div class="col"><button class="primary" data-w="mark">Marcar na foto atual</button><button data-w="new">Escolher ou tirar outra foto</button><button data-w="x">Cancelar</button></div>`;
+        sh.querySelector('[data-w="mark"]').onclick = () => { sh.close(); ED.quickView = key; renderTab(key); openMarker(key, 1); };
+        sh.querySelector('[data-w="new"]').onclick = () => { pickPhoto(); sh.close(); };
+        sh.querySelector('[data-w="x"]').onclick = () => sh.close();
+      } else { pickPhoto(); sh.close(); }
+    }));
+  }
 
   // ---------- Vista: página de resumo (a marcação acontece em tela cheia) ----------
   const isOptional = (p) => /^opcional/.test(p[2] || '');
@@ -346,6 +415,7 @@
       invalidate();
       await DB.put('assessments', ED.a);
       renderTab(key);
+      if (meta && meta.thenMark) openMarker(key, 1);
     });
   }
 
@@ -375,7 +445,7 @@
     const root = document.createElement('div');
     root.className = 'fs';
     root.innerHTML = `<div class="fs-head"><button type="button" class="fs-x" data-act="close" aria-label="Fechar">${ICON.close}</button><div class="fs-title"><b>${esc(o.title)}</b><span class="fs-sub"></span></div></div>
-      <div class="fs-area"><canvas class="fs-cv"></canvas>${o.overlayHtml || ''}<div class="fs-left">${o.leftHtml || ''}</div><div class="fs-right">${o.rightHtml || ''}</div><div class="fs-drawer" hidden></div><div class="fs-toast" hidden></div></div>
+      <div class="fs-area"><canvas class="fs-cv"></canvas>${o.overlayHtml || ''}<div class="fs-left">${o.leftHtml || ''}</div><div class="fs-right ${o.rightLow ? 'low' : ''}">${o.rightHtml || ''}</div><div class="fs-drawer" hidden></div><div class="fs-toast" hidden></div></div>
       <div class="fs-bottom">${o.bottomHtml || ''}</div>`;
     document.body.appendChild(root);
     const area = root.querySelector('.fs-area'), cv = root.querySelector('.fs-cv');
@@ -574,7 +644,11 @@
             d.querySelectorAll('[data-pt]').forEach((b) => (b.onclick = () => { cur = b.dataset.pt; skipped.delete(cur); S.drawer(null); ui(); }));
           }
         },
-        onClose: () => { saveSoon(); renderTab(key); },
+        onClose: () => {
+          saveSoon();
+          if (ED.quickView === key && Object.keys(P()).length) { ED.quickView = null; ED.onlyView = key; renderTab('res'); }
+          else { ED.quickView = null; renderTab(key); }
+        },
       });
       const ui = () => {
         const p = pts[idx(cur)];
@@ -930,9 +1004,9 @@
   }
 
   function renderResults() {
-    const groups = allResults(ED.a);
+    const groups = allResults(ED.a).filter((g) => !ED.onlyView || g.key === ED.onlyView);
     main.innerHTML = `${tabsHtml()}
-      <div class="card"><h2>Resultados</h2>
+      <div class="card"><h2>Resultados</h2>${ED.onlyView ? `<p class="warn">Análise rápida: só a vista ${esc(Angles.VIEWS[ED.onlyView].label.toLowerCase())}. <button id="allres">Mostrar todas</button></p>` : ''}
       <p class="muted">Valores em graus na convenção descrita em cada medida. Ângulo de foto descreve a configuração observada em apoio estático; não é diagnóstico.</p>
       ${groups.map((g) => `<h3>${esc(g.def.label)}</h3>${g.res.length ? `<div class="table-wrap"><table><tr><th>Código</th><th>Medida</th><th>Valor</th><th>Descrição</th><th>Referência</th><th>Conduta</th></tr>
         ${g.res.map((r) => { const f = flagFor(r); return `<tr><td>${r.code}</td><td>${esc(r.label)}</td><td><b>${Angles.fmtVal(r)}</b></td><td>${esc(r.text)}</td><td><span class="tag ${f.cls}">${esc(f.txt)}</span></td>
@@ -940,6 +1014,8 @@
       </table></div>` : '<p class="muted">Nenhuma medida completa nesta vista.</p>'}
       ${ED.a.views[g.key].free.some((f) => Angles.freeValue(f)) ? `<p>Ângulos livres: ${ED.a.views[g.key].free.filter((f) => Angles.freeValue(f)).map((f) => `${esc(f.label)} <b>${Angles.fmt(Angles.freeValue(f).value)}°</b>`).join(' · ')}</p>` : ''}`).join('')}
       </div>`;
+    const ar = $('#allres');
+    if (ar) ar.onclick = () => { ED.onlyView = null; renderTab('res'); };
     main.insertAdjacentHTML('beforeend', extraResultsHtml());
     main.querySelectorAll('[data-cond]').forEach((s) => (s.onchange = () => { ED.a.conduta[s.dataset.cond] = s.value; saveSoon(); }));
   }
@@ -1138,7 +1214,7 @@
     main.querySelectorAll('[data-mvmed]').forEach((b) => (b.onclick = () => {
       const { tid, f } = findFoto(b.dataset.mvmed);
       if (!f) return;
-      openFreeWorkspace({ title: Mov.TESTS.find((t) => t.id === tid).nome + ' — ' + f.nome, photo: f.photo, free: f.free, onChange: saveSoon, back: () => { ED.movOpen = tid; renderTab('mov'); } });
+      openFreeWorkspace({ title: Mov.TESTS.find((t) => t.id === tid).nome + ' — ' + f.nome, photo: f.photo, free: f.free, templates: Mov.TESTS.find((t) => t.id === tid).modelos, onChange: saveSoon, back: () => { ED.movOpen = tid; renderTab('mov'); } });
     }));
     main.querySelectorAll('[data-mvdel]').forEach((b) => (b.onclick = () => {
       const { tid, f } = findFoto(b.dataset.mvdel);
@@ -1557,10 +1633,11 @@
       const S = makeStage({
         img,
         title: cfg.title,
-        overlayHtml: '<div class="fs-pill"></div><div class="fs-nudge" hidden></div>',
+        overlayHtml: '<div class="fs-pill"></div><div class="fs-nudge" hidden></div><div class="fs-types"><button type="button" class="fs-type" data-act="type3pt" data-tipo="3pt" aria-label="Ângulo de 3 pontos"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 31L21 11l13 18"/><circle cx="7" cy="31" r="2.6" fill="currentColor"/><circle cx="21" cy="11" r="2.6" fill="currentColor"/><circle cx="34" cy="29" r="2.6" fill="currentColor"/></svg></button><button type="button" class="fs-type" data-act="typeh" data-tipo="h" aria-label="Linha e horizontal"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 30L30 12"/><path d="M6 30h30" stroke-dasharray="4 4"/><circle cx="6" cy="30" r="2.6" fill="currentColor"/><circle cx="30" cy="12" r="2.6" fill="currentColor"/></svg></button><button type="button" class="fs-type" data-act="typev" data-tipo="v" aria-label="Linha e vertical"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6l18 28"/><path d="M12 6v30" stroke-dasharray="4 4"/><circle cx="12" cy="6" r="2.6" fill="currentColor"/><circle cx="30" cy="34" r="2.6" fill="currentColor"/></svg></button><button type="button" class="fs-done" data-act="done">Terminar</button></div>',
+        rightLow: true,
         leftHtml: fsBtn('grid', ICON.grid, 'Grade') + fsBtn('contrast', ICON.contrast, 'Contraste'),
         rightHtml: fsBtn('move', ICON.move, 'Mover') + fsBtn('list', ICON.list, 'Ângulos') + fsBtn('fit', ICON.fit, 'Ajustar'),
-        bottomHtml: fsBtn('undo', ICON.back, 'Desfazer') + fsBtn('new', ICON.plus, 'Novo ângulo', 'primary') + fsBtn('redo', ICON.redo, 'Refazer ponto') + fsBtn('nudge', ICON.nudge, 'Ajuste fino'),
+        bottomHtml: fsBtn('undo', ICON.back, 'Desfazer') + fsBtn('redo', ICON.redo, 'Refazer ponto') + fsBtn('nudge', ICON.nudge, 'Ajuste fino') + (cfg.templates && cfg.templates.length ? fsBtn('model', ICON.list, 'Modelo') : ''),
         drawOverlay: (c, tf, loupe) => { c.save(); c.translate(tf.x, tf.y); c.scale(tf.s, tf.s); drawFreeAngles(c, cfg.free, 1 / tf.s, { sel: W.sel, labels: !loupe, numbers: !loupe }); c.restore(); },
         hit: (q, r) => {
           let best = null, bd = r;
@@ -1580,7 +1657,7 @@
         move: (t, q) => { const f = cfg.free[t.ai]; if (f) f.pts[t.pi] = q; },
         end: (t, moved, placed) => {
           const f = cfg.free[t.ai];
-          if (f && placed) { pushUndo(f, t.pi, null); if (freeHole(f) < 0) W.adding = null; changed(); }
+          if (f && placed) { pushUndo(f, t.pi, null); if (freeHole(f) < 0) { const nx = cfg.free.findIndex((g) => freeHole(g) >= 0); W.adding = nx >= 0 ? nx : null; } changed(); }
           else if (f && moved && W.drag0) { const cur = f.pts[t.pi]; if (cur && Math.hypot(cur.x - W.drag0.x, cur.y - W.drag0.y) > 0.5) { pushUndo(f, t.pi, W.drag0); changed(); } }
           W.drag0 = null;
           ui();
@@ -1595,19 +1672,35 @@
             e.f.pts[e.pi] = e.prev; W.sel = { ai, pi: e.pi }; W.tn = null;
             if (!e.prev) W.adding = ai;
             changed(); ui();
-          } else if (act === 'new') {
-            const m = S.modal(`<h2>Novo ângulo</h2><div class="col">
-              <button class="primary" data-t="3pt">Ângulo de 3 pontos<small>O 2º ponto é o vértice</small></button>
-              <button data-t="h">Linha × horizontal<small>Inclinação de um segmento</small></button>
-              <button data-t="v">Linha × vertical<small>Desvio de um segmento</small></button>
-              <button data-t="x">Cancelar</button></div>`);
-            m.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => {
+          } else if (act === 'type3pt' || act === 'typeh' || act === 'typev') {
+            startAngle(act === 'type3pt' ? '3pt' : act === 'typeh' ? 'h' : 'v');
+          } else if (act === 'done') {
+            if (W.adding != null) {
+              const f = cfg.free[W.adding];
+              if (f && freeHole(f) >= 0) {
+                if (f.pts.some(Boolean) && !confirm(`Descartar o ângulo incompleto "${f.label}"?`)) { W.adding = null; ui(); return; }
+                cfg.free.splice(W.adding, 1);
+                changed();
+              }
+              W.adding = null; W.sel = null; ui();
+              return;
+            }
+            S.close();
+          } else if (act === 'model') {
+            const m = S.modal(`<h2>Modelo de medidas</h2><p class="muted">Sugestão para conferir com o seu manual. Os ângulos entram na lista para você marcar na ordem indicada no topo da tela; pode renomear ou apagar.</p>
+              <div class="col">${cfg.templates.map((t, i) => `<button data-m="${i}"><b>${esc(t.nome)}</b><small>${esc(t.angulos.map((x) => x.label).join(' · '))}</small></button>`).join('')}<button data-m="x">Cancelar</button></div>`);
+            m.querySelectorAll('[data-m]').forEach((b) => (b.onclick = () => {
               S.closeModal();
-              if (b.dataset.t === 'x') return;
-              const t = FREE_TIPOS[b.dataset.t], f = normFree({ tipo: b.dataset.t, label: `${t.rot} ${cfg.free.length + 1}`, pts: [] });
-              cfg.free.push(f); W.adding = cfg.free.length - 1; W.sel = null; W.tn = null;
-              changed(); ui();
-              S.toast('Toque na foto para marcar o 1º ponto. Pode errar: use Desfazer.', 3500);
+              if (b.dataset.m === 'x') return;
+              const t = cfg.templates[+b.dataset.m];
+              let first = -1;
+              t.angulos.forEach((sp) => {
+                if (cfg.free.some((f) => f.label === sp.label)) return;
+                cfg.free.push(normFree({ label: sp.label, tipo: sp.tipo, dicas: sp.dicas.slice(), pts: [] }));
+                if (first < 0) first = cfg.free.length - 1;
+              });
+              if (first >= 0) { W.adding = first; W.sel = null; W.tn = null; changed(); ui(); S.toast('Marque na ordem indicada no topo da tela. Pode errar: use Desfazer.', 3800); }
+              else S.toast('Esses ângulos já estão na lista.');
             }));
           } else if (act === 'redo') {
             if (!W.sel) return S.toast('Toque num ponto para selecioná-lo e depois use "Refazer ponto".');
@@ -1627,14 +1720,21 @@
         },
         onClose: () => { clearInterval(W.hold); clearTimeout(W.holdT); cfg.back(); },
       });
+      const startAngle = (tipo) => {
+        if (W.adding != null) { const f0 = cfg.free[W.adding]; if (f0 && !f0.pts.some(Boolean)) cfg.free.splice(W.adding, 1); }
+        const t = FREE_TIPOS[tipo], f = normFree({ tipo, label: `${t.rot} ${cfg.free.length + 1}`, pts: [] });
+        cfg.free.push(f); W.adding = cfg.free.length - 1; W.sel = null; W.tn = null;
+        changed(); ui();
+        S.toast('Toque na foto para marcar o 1º ponto. Pode errar: use Desfazer.', 3200);
+      };
       let listOpen = false;
       const hintText = () => {
         if (W.adding != null && cfg.free[W.adding] && freeHole(cfg.free[W.adding]) >= 0) {
           const f = cfg.free[W.adding], i = freeHole(f), t = FREE_TIPOS[f.tipo];
-          return `Toque na foto: ${t.dicas[i]} de "${f.label}" (${i + 1} de ${t.n})`;
+          return `Toque na foto: ${(f.dicas && f.dicas[i]) || t.dicas[i]} de "${f.label}" (${i + 1} de ${t.n})`;
         }
         if (W.sel) return 'Ponto selecionado: arraste para ajustar, use o ajuste fino ou "Refazer ponto"';
-        return cfg.free.length ? 'Toque num ponto para ajustá-lo, ou em "Novo ângulo"' : 'Toque em "Novo ângulo" para começar';
+        return cfg.free.length ? 'Toque num ponto para ajustá-lo, ou escolha um tipo de ângulo ao lado' : 'Escolha um tipo de ângulo ao lado para começar';
       };
       const renderNudge = () => {
         const box = S.root.querySelector('.fs-nudge');
@@ -1683,6 +1783,8 @@
       const ui = () => {
         S.root.querySelector('.fs-pill').textContent = hintText();
         S.setSub(`${cfg.free.filter((f) => Angles.freeValue(f)).length} de ${cfg.free.length} ângulos completos`);
+        const building = W.adding != null && cfg.free[W.adding] && freeHole(cfg.free[W.adding]) >= 0 ? cfg.free[W.adding].tipo : null;
+        S.root.querySelectorAll('.fs-type').forEach((b) => b.classList.toggle('on', b.dataset.tipo === building));
         renderNudge();
         if (listOpen) renderList();
         S.draw();

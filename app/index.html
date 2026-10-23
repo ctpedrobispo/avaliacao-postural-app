@@ -160,6 +160,29 @@ th { color: var(--muted); font-weight: 600; }
 .crop-fine label { color: #fff; margin: 0; display: flex; justify-content: space-between; }
 .crop-fine input { padding: 0; }
 @media (max-width: 700px) { .fs-pill { max-width: calc(100% - 20px); top: 148px; } .fs-bottom { gap: 6px; } .fs-bottom .fs-btn { min-width: 64px; } }
+/* Início da avaliação */
+.launch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
+.launch.small { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 700px) { .launch.small { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.lcard { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; min-height: 170px; padding: 16px; border-radius: 22px; background: var(--card); color: var(--ink); box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+.launch.small .lcard { min-height: 110px; }
+.lcard b { font-size: 20px; }
+.launch.small .lcard b { font-size: 16px; }
+.lcard small { color: var(--muted); font-weight: 400; font-size: 13px; }
+.lcard .lic { color: var(--brand); display: block; }
+.lcard .lic svg { width: 64px; height: 64px; }
+.launch.small .lic svg { width: 40px; height: 40px; }
+.sheet { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.sheet .box { background: var(--card); color: var(--ink); border-radius: 16px; padding: 18px; width: min(420px, 100%); max-height: 90vh; overflow: auto; }
+.sheet .col { display: flex; flex-direction: column; gap: 8px; }
+.sheet .col small { display: block; color: var(--muted); font-weight: 400; }
+.fs-types { position: absolute; top: 12px; right: max(10px, env(safe-area-inset-right)); display: flex; flex-direction: column; gap: 10px; align-items: flex-end; z-index: 6; }
+.fs-type { width: 64px; height: 64px; border-radius: 50%; background: #8e8e93; color: #fff; border: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,.35); padding: 0; }
+.fs-type svg { width: 36px; height: 36px; }
+.fs-type.on { background: #34c759; }
+.fs-done { background: #ff9500; color: #fff; border: 0; border-radius: 99px; min-height: 54px; padding: 0 26px; font-size: 20px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+.fs-right.low { top: auto; bottom: 14px; transform: none; }
+@media (max-height: 560px) { .fs-type { width: 46px; height: 46px; } .fs-type svg { width: 26px; height: 26px; } .fs-done { min-height: 42px; font-size: 16px; padding: 0 16px; } .fs-types { gap: 6px; } }
 /* Testes de movimento */
 details.card > summary { cursor: pointer; font-size: 17px; }
 .mv-chk { display: flex; gap: 8px; align-items: flex-start; color: var(--ink); font-size: 15px; margin: 6px 0; }

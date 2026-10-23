@@ -42,6 +42,13 @@ A avaliação ficou separada em modos, cada um com a sua tela cheia (foto e pouc
 - **Calibração**, **Cortar e girar** (girar de 90 em 90°, nivelar de −10° a +10° e cortar) e **Ângulos livres** têm tela cheia própria. A aba **Ângulos livres** mede qualquer foto avulsa; os testes de movimento têm foto e "Medir" no mesmo espaço.
 - **Girar o iPad:** a tela cheia acompanha a janela nos dois sentidos, o menu não some e os botões continuam visíveis.
 
+## Entrada por modo, análise rápida e modelos de medida (23/10/2026)
+
+- **Início da avaliação:** ao abrir uma avaliação, a primeira aba é o **Início**, com cartões grandes por tarefa: Postura completa, Análise rápida, Amplitude e ângulos, Testes de movimento; e cartões menores para Resultados, Evolução, Ficha e conduta e Laudo.
+- **Análise rápida:** escolhe a vista, pede a foto, abre o corte e a marcação em tela cheia e termina nos resultados **só daquela vista** (com o botão "Mostrar todas").
+- **Ângulos livres:** os três tipos (3 pontos, linha × horizontal, linha × vertical) ficam sempre visíveis à direita, em botões redondos (o tipo em uso fica verde), e o botão **Terminar** encerra o ângulo ou fecha a tela.
+- **Modelos de medida por teste** (agachamento overhead, step-down, joelho na parede, Thomas modificado): o botão "Modelo" carrega ângulos sugeridos, com o nome de cada ponto, e o app avança sozinho para o ângulo seguinte. **São sugestões e estão PENDENTES DE VALIDAÇÃO com o manual de movimento**; podem ser renomeadas e apagadas.
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:

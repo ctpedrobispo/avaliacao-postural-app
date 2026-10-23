@@ -30,3 +30,20 @@ test('sem dados, resumo vazio', () => {
   assert.deepEqual(Mov.summarize(null).tests, []);
   assert.deepEqual(Mov.summarize({ t: {}, livres: [] }).tests, []);
 });
+
+test('modelos de medida por teste: tipos, pontos nomeados e sem termos de diagnóstico', () => {
+  const proibido = /valgo|varo|encurtad|fraqueza|risco de les|escoliose/i;
+  const comModelo = Mov.TESTS.filter((x) => x.modelos);
+  assert.ok(comModelo.length >= 4, 'overhead, step-down, joelho na parede e Thomas têm modelo');
+  comModelo.forEach((x) => x.modelos.forEach((md) => {
+    assert.ok(md.nome && md.angulos.length);
+    const nomes = new Set();
+    md.angulos.forEach((a) => {
+      assert.ok(['3pt', 'h', 'v'].includes(a.tipo), a.label);
+      assert.equal(a.dicas.length, a.tipo === '3pt' ? 3 : 2, a.label);
+      assert.ok(!nomes.has(a.label), 'rótulo repetido: ' + a.label);
+      nomes.add(a.label);
+      assert.ok(!proibido.test(a.label + ' ' + a.dicas.join(' ')), a.label);
+    });
+  }));
+});

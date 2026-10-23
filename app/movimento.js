@@ -77,6 +77,44 @@
     },
   ];
 
+  // Modelos de medida: sugestões para conferir com o manual do Pedro (PENDENTE DE VALIDAÇÃO).
+  // tipo: '3pt' (ângulo no 2º ponto), 'h' (linha × horizontal), 'v' (linha × vertical). dicas: nome de cada ponto, na ordem.
+  const pick = (id) => TESTS.find((t) => t.id === id);
+  pick('ohs').modelos = [
+    { id: 'lat', nome: 'Vista lateral', angulos: [
+      { label: 'Tronco × vertical', tipo: 'v', dicas: ['Acrômio', 'Trocânter maior'] },
+      { label: 'Tíbia × vertical', tipo: 'v', dicas: ['Joelho (linha articular)', 'Maléolo lateral'] },
+      { label: 'Flexão do joelho', tipo: '3pt', dicas: ['Trocânter maior', 'Joelho (vértice)', 'Maléolo lateral'] },
+      { label: 'Flexão do quadril', tipo: '3pt', dicas: ['Acrômio', 'Trocânter maior (vértice)', 'Joelho'] },
+      { label: 'Braços × vertical', tipo: 'v', dicas: ['Punho', 'Acrômio'] },
+    ] },
+    { id: 'ant', nome: 'Vista anterior', angulos: [
+      { label: 'Ombros × horizontal', tipo: 'h', dicas: ['Acrômio D', 'Acrômio E'] },
+      { label: 'Pelve × horizontal', tipo: 'h', dicas: ['EIAS D', 'EIAS E'] },
+      { label: 'Quadril–joelho–tornozelo D', tipo: '3pt', dicas: ['EIAS D', 'Centro da patela D (vértice)', 'Tornozelo D'] },
+      { label: 'Quadril–joelho–tornozelo E', tipo: '3pt', dicas: ['EIAS E', 'Centro da patela E (vértice)', 'Tornozelo E'] },
+    ] },
+  ];
+  pick('stepdown').modelos = [
+    { id: 'ant', nome: 'Vista anterior', angulos: [
+      { label: 'Pelve × horizontal', tipo: 'h', dicas: ['EIAS D', 'EIAS E'] },
+      { label: 'Quadril–joelho–tornozelo (perna de apoio)', tipo: '3pt', dicas: ['EIAS', 'Centro da patela (vértice)', 'Tornozelo'] },
+      { label: 'Tronco × vertical', tipo: 'v', dicas: ['Incisura jugular', 'Meio das EIAS'] },
+    ] },
+  ];
+  pick('jpar').modelos = [
+    { id: 'lat', nome: 'Vista lateral', angulos: [
+      { label: 'Tíbia × vertical', tipo: 'v', dicas: ['Joelho (linha articular)', 'Maléolo lateral'] },
+      { label: 'Pé × horizontal', tipo: 'h', dicas: ['Calcanhar', 'Ponta do hálux'] },
+    ] },
+  ];
+  pick('thomas').modelos = [
+    { id: 'lat', nome: 'Vista lateral', angulos: [
+      { label: 'Coxa × horizontal', tipo: 'h', dicas: ['Trocânter maior', 'Joelho (linha articular)'] },
+      { label: 'Flexão do joelho', tipo: '3pt', dicas: ['Trocânter maior', 'Joelho (vértice)', 'Maléolo lateral'] },
+    ] },
+  ];
+
   const fmtN = (v) => String(Math.round(v * 10) / 10).replace('.', ',');
   const num = (v) => { const x = parseFloat(String(v).replace(',', '.')); return isNaN(x) ? null : x; };
   const sidesText = (o) => (o.D && o.E ? 'ambos os lados' : o.D ? 'lado direito' : 'lado esquerdo');
