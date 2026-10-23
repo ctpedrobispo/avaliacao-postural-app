@@ -56,6 +56,16 @@ A avaliação ficou separada em modos, cada um com a sua tela cheia (foto e pouc
 - **Rascunho dos textos:** na Ficha e conduta, o botão "Gerar rascunho" monta a observação e a versão em linguagem simples **por regras, com os seus números, sem IA e sem enviar dados**. Você lê e edita; substituir texto já escrito pede confirmação.
 - **Não feito:** vídeo (retirado desta rodada) e **colocação automática dos pontos por IA no aparelho**, que fica como próxima etapa.
 
+## Pontos já marcados pela foto (v11, 23/10/2026)
+
+- Ao abrir **Marcar pontos** numa vista que ainda não tem pontos, o app **sugere todos os pontos sozinho**, nas quatro vistas (anterior, posterior, lateral direita e esquerda), também na Análise rápida. Você só ajusta.
+- **Tudo no aparelho:** o modelo de detecção de corpo (MediaPipe Pose Landmarker, Apache-2.0, versão lite) fica dentro do app, em `app/vendor/`. A foto não sai do iPad. Na primeira vez o app baixa e guarda cerca de 20 MB (precisa de internet); depois funciona sem internet.
+- **Ajustar:** toque em qualquer ponto e arraste (a lupa fica no canto superior esquerdo); **Próximo** percorre todos os pontos; **Desfazer** volta passo a passo, inclusive a sugestão inteira; **Sugerir pontos** (botão à direita) refaz a sugestão, pedindo confirmação se já houver pontos.
+- **O que o modelo acha bem:** nariz, orelhas, ombros, quadris, joelhos, tornozelos, calcanhares e ponta do pé. **Aproximações** (conferir sempre): acrômio, EIAS, EIPS, C7, axila, caixa torácica, ponto mais profundo do tronco, incisura jugular, xifoide, fenda glútea e tendão. Nas vistas anterior e posterior o lado D/E vem da posição na foto, não do rótulo do modelo; nas laterais, a direção do aluno vem do nariz (e o app avisa quando muda).
+- **Marcação 2 (repetição):** não recebe sugestão, para a repetição continuar independente e o erro técnico de medida (TEM) continuar válido.
+- O laudo técnico registra que os pontos foram sugeridos automaticamente e conferidos e ajustados pelo avaliador.
+- **Limites:** roupa larga, foto sem os pés, objetos na frente do corpo e lado oculto nas laterais pioram a sugestão. **PENDENTE DE VALIDAÇÃO:** quanto as sugestões diferem da marcação manual do Pedro em fotos reais de alunos; conferir também a licença do modelo antes de divulgar o app a terceiros.
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:

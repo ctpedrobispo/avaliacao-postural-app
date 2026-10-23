@@ -109,6 +109,7 @@
       <h2>Condições de aquisição</h2>
       <table>${h.CONDICOES.filter(([k]) => a.condicoes[k]).map(([k, l]) => `<tr><th style="width:35%">${l}</th><td>${esc(a.condicoes[k])}</td></tr>`).join('') || '<tr><td>Não registradas.</td></tr>'}</table>
       <p class="note"><b>Checklist de captura:</b> ${chk} de ${h.CHECKLIST.length} itens confirmados.${naoChk.length && chk ? ' Não confirmados: ' + esc(naoChk.map(([, l]) => l).join('; ')) + '.' : ''}</p>
+      ${Object.values(a.views).some((x) => x.auto) ? '<p class="note"><b>Marcação:</b> os pontos foram sugeridos por detecção automática no aparelho e conferidos e ajustados pelo avaliador. Pontos de osso fino (acrômio, EIAS, EIPS, C7 e axila) partem de aproximações e dependem da conferência.</p>' : ''}
       ${cnotes.length ? `<p class="note"><b>Calibração e captura:</b></p><ul class="note">${cnotes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
       ${a.observacao ? `<h2>Observação do avaliador</h2><p>${esc(a.observacao)}</p>` : ''}
       ${a.sintomas ? `<h2>Sintomas e dor relatados</h2><p>${esc(a.sintomas)}</p>` : ''}

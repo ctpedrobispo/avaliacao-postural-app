@@ -604,19 +604,27 @@
         title: def.label + (set === 2 ? ' — marcação 2' : ''),
         overlayHtml: '<div class="mk-guide" role="button" aria-label="Ampliar a figura"></div><div class="mk-name"></div>',
         leftHtml: fsBtn('grid', ICON.grid, 'Grade') + fsBtn('contrast', ICON.contrast, 'Contraste'),
-        rightHtml: fsBtn('move', ICON.move, 'Mover') + fsBtn('list', ICON.list, 'Pontos') + fsBtn('fit', ICON.fit, 'Ajustar'),
+        rightHtml: fsBtn('move', ICON.move, 'Mover') + fsBtn('list', ICON.list, 'Pontos') + fsBtn('auto', svgI('<circle cx="12" cy="5" r="2"/><path d="M12 7v7M7 10h10M9 21l3-7 3 7"/>'), 'Sugerir pontos') + fsBtn('fit', ICON.fit, 'Ajustar'),
         bottomHtml: fsBtn('undo', ICON.back, 'Desfazer') + fsBtn('next', ICON.pin, 'Próximo', 'primary') + fsBtn('redo', ICON.redo, 'Refazer ponto'),
         drawOverlay: (c, tf) => drawView(c, img, key, v, tf, 1, { noImage: true, grid: false, style: 'plain', noLabels: true, noFree: true, sel: cur, set }),
-        hit: (q, r) => { const p = P()[cur]; return p && Math.hypot(p.x - q.x, p.y - q.y) < r ? cur : null; },
-        start: (id) => { hist.push({ id, prev: { ...P()[id] } }); },
-        place: (q) => { hist.push({ id: cur, prev: P()[cur] ? { ...P()[cur] } : null }); P()[cur] = q; return cur; },
+        hit: (q, r) => {
+          const c0 = P()[cur];
+          if (c0 && Math.hypot(c0.x - q.x, c0.y - q.y) < r) return cur;
+          let best = null, bd = r;
+          pts.forEach(([id]) => { const pp = P()[id]; if (!pp) return; const d = Math.hypot(pp.x - q.x, pp.y - q.y); if (d < bd) { bd = d; best = id; } });
+          return best;
+        },
+        start: (id) => { hist.push({ id, prev: { ...P()[id] } }); if (id !== cur) { cur = id; ui(); } },
+        place: (q) => { if (P()[cur]) return null; hist.push({ id: cur, prev: null }); P()[cur] = q; return cur; },
         move: (id, q) => { P()[id] = q; },
         end: (id, moved, placed) => { if (!moved && !placed) hist.pop(); invalidate(); saveSoon(); ui(); },
         cancel: (d) => { if (d.placed) { const h = hist.pop(); if (h) { if (h.prev) P()[h.id] = h.prev; else delete P()[h.id]; } } },
         action: (act) => {
+          if (act === 'auto') return runAuto(true);
           if (act === 'undo') {
             const h = hist.pop();
             if (!h) return S.toast('Nada para desfazer.');
+            if (h.all) { Object.keys(P()).forEach((k) => delete P()[k]); Object.assign(P(), h.all); cur = firstMissing(key) || pts[0][0]; invalidate(); saveSoon(); ui(); return; }
             if (h.prev) P()[h.id] = h.prev; else delete P()[h.id];
             cur = h.id; invalidate(); saveSoon(); ui();
           } else if (act === 'redo') {
@@ -633,6 +641,7 @@
             const i = idx(cur), n = pts.length;
             let nx = null;
             for (let k = 1; k <= n; k++) { const pp = pts[(i + k) % n]; if (!P()[pp[0]] && !skipped.has(pp[0])) { nx = pp[0]; break; } }
+            if (!nx && i + 1 < n) nx = pts[i + 1][0];
             if (nx) { cur = nx; ui(); return; }
             ui();
             const m = S.modal(`<h2>Pontos marcados</h2><p>${pts.filter(([id]) => P()[id]).length} de ${n} pontos marcados${pts.some((pp) => !P()[pp[0]]) ? ' (os que faltam são opcionais)' : ''}.</p><div class="row"><button class="primary" data-m="ok">Concluir</button><button data-m="rev">Revisar</button></div>`);
@@ -666,8 +675,32 @@
         S.draw();
       };
       S.root.querySelector('.mk-guide').onclick = () => { guideBig = !guideBig; ui(); };
+      // Sugestão automática dos pontos (no aparelho). Na marcação 2 não roda, para a repetição continuar independente.
+      const runAuto = async (manual) => {
+        if (!window.Autopose) return;
+        if (set === 2) return S.toast('Na marcação 2 os pontos são marcados à mão, para medir a repetição.', 4000);
+        if (manual && Object.keys(P()).length && !confirm('Isto substitui os pontos já marcados pela sugestão automática. Continuar?')) return;
+        S.toast('Procurando os pontos na foto… Na primeira vez o app prepara o modelo (cerca de 20 MB, precisa de internet).', 60000);
+        try {
+          const r = await Autopose.suggest(key, img);
+          if (!S.alive) return;
+          const n = r ? Object.keys(r.pts).filter((id) => idx(id) >= 0).length : 0;
+          if (!n) return S.toast('Não achei o corpo inteiro na foto. Marque os pontos tocando na foto.', 5000);
+          hist.push({ all: JSON.parse(JSON.stringify(P())) });
+          Object.keys(P()).forEach((k) => delete P()[k]);
+          Object.keys(r.pts).forEach((id) => { if (idx(id) >= 0) P()[id] = r.pts[id]; });
+          v.auto = true;
+          let extra = '';
+          if (def.defaultFacing && r.facing && r.facing !== v.facing) { v.facing = r.facing; extra = ' Direção do aluno ajustada para ' + (r.facing === 'esq' ? 'a esquerda' : 'a direita') + ' da foto: confira.'; }
+          cur = pts[0][0]; invalidate(); saveSoon(); ui();
+          S.toast(n + ' de ' + pts.length + ' pontos sugeridos. Toque no ponto e arraste para ajustar; Próximo percorre todos. Acrômio, EIAS, EIPS, C7 e axila são aproximados: confira.' + extra, 9000);
+        } catch (e) {
+          if (S.alive) S.toast('Sugestão automática indisponível agora (a primeira vez precisa de internet). Marque tocando na foto.', 6000);
+        }
+      };
       ui();
-      S.toast('Toque na foto para marcar o ponto. Arraste o ponto para ajustar. Dois dedos aproximam a foto.', 4200);
+      if (set !== 2 && !Object.keys(P()).length) runAuto(false);
+      else S.toast('Toque num ponto e arraste para ajustar. Dois dedos aproximam a foto.', 4200);
     });
   }
 
