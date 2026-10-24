@@ -67,3 +67,12 @@ test('ponto pouco visível não é sugerido', () => {
   assert.equal(r.pts.joeD, undefined);
   assert.ok(r.pts.torD);
 });
+
+test('anterior: o ponto da cabeça fica para fora e abaixo do ponto da orelha do modelo', () => {
+  const lm = person(true);
+  const r = Auto.mapLandmarks('ant', lm, 1000, 2000);
+  const eL = Math.min(lm[7].x, lm[8].x) * 1000, eR = Math.max(lm[7].x, lm[8].x) * 1000;
+  assert.ok(r.pts.cabD.x < eL, 'cabeça D mais à esquerda da foto que a orelha');
+  assert.ok(r.pts.cabE.x > eR, 'cabeça E mais à direita da foto que a orelha');
+  assert.ok(r.pts.cabD.y > lm[7].y * 2000, 'lóbulo abaixo do ponto da orelha');
+});

@@ -91,6 +91,14 @@ Do arquivo `Base_Regras_App_Postural_v4_0.json` (proposta em revisão profission
 - As coordenadas de todos os pontos (anterior 21, posterior 20, lateral 9) foram remedidas nas novas imagens. Na lateral, o braço do modelo cobre o quadril: **EIAS, EIPS e trocânter são posições aproximadas** (PENDENTE DE CONFERÊNCIA pelo Pedro).
 - Atenção para publicar: o histórico do repositório ainda contém as figuras anteriores; antes de divulgar, recriar o repositório sem esse histórico.
 
+## Tela de marcação para celular, tablet e PC (v17, 24/10/2026)
+
+- **Nada fica por cima da foto.** A figura-guia e o nome do ponto ficam numa faixa própria (no topo; na lateral quando o celular está deitado). As ferramentas (Grade, Contraste, Mover, Pontos, Sugerir, Ajustar) ficam numa linha abaixo da foto no celular em pé e em colunas nas laterais no tablet e no PC. Os botões principais (Desfazer, Próximo, Refazer) ficam embaixo.
+- **Arrastar um ponto não faz mais o ponto pular:** ele mantém a distância do toque inicial (testado: o ponto andou exatamente o quanto o dedo andou). A área de toque para pegar um ponto é maior no dedo (34 px).
+- **A foto não foge mais:** com um dedo em área vazia a foto não se move (use dois dedos para aproximar e mover, ou o botão Mover). No PC, a roda do mouse faz zoom. Mudanças de tamanho da tela (barra do navegador) mantêm o zoom e a posição.
+- **Cabeçalho do app** quebra em linhas no celular, sem espremer o título.
+- **Vista anterior:** o ponto da cabeça sugerido automaticamente fica no lóbulo da orelha (mais para fora e para baixo que o ponto do modelo).
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:

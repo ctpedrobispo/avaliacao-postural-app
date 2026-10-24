@@ -220,6 +220,49 @@ details.card > summary { cursor: pointer; font-size: 17px; }
 .rp .note { font-size: 9pt; color: #333; }
 .rp .screen-only { margin-bottom: 12px; }
 @media print { .rp .screen-only { display: none; } }
+
+/* ===== Tela cheia: nada fica por cima da foto. Celular, tablet e PC ===== */
+.fs { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+.fs button { touch-action: manipulation; }
+.fs-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.fs-info { flex: none; display: flex; gap: 10px; align-items: stretch; padding: 8px max(10px, env(safe-area-inset-right)) 8px max(10px, env(safe-area-inset-left)); background: #0b0b0b; border-bottom: 1px solid #222; }
+.fs-info:empty { display: none; }
+.fs-mid { flex: 1; min-height: 0; display: flex; flex-direction: row; }
+.fs-area { flex: 1; min-width: 0; min-height: 0; }
+.fs-left, .fs-right { position: static; transform: none; top: auto; bottom: auto; left: auto; right: auto; flex: none; display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 8px; background: #0b0b0b; overflow: auto; }
+.fs-left { padding-left: max(8px, env(safe-area-inset-left)); }
+.fs-right { padding-right: max(8px, env(safe-area-inset-right)); }
+.fs-left:empty, .fs-right:empty { display: none; }
+.fs-info .mk-guide { position: relative; top: auto; right: auto; width: 84px; height: 84px; flex: none; }
+.fs-info .mk-guide.big { position: fixed; top: calc(env(safe-area-inset-top) + 76px); left: 50%; transform: translateX(-50%); width: min(320px, 86vw); height: min(500px, 70vh); z-index: 40; box-shadow: 0 8px 34px rgba(0,0,0,.7); }
+.fs-info .mk-name, .fs-info .mk-name.low { position: static; top: auto; right: auto; bottom: auto; max-width: none; flex: 1; min-width: 0; font-size: 17px; padding: 6px 10px; display: flex; flex-direction: column; justify-content: center; }
+@media (max-width: 700px) {
+  .fs-mid { display: grid; grid-template-columns: auto 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+  .fs-area { grid-column: 1 / -1; grid-row: 1; }
+  .fs-left { grid-column: 1; grid-row: 2; flex-direction: row; }
+  .fs-right { grid-column: 2; grid-row: 2; flex-direction: row; justify-content: flex-end; }
+  .fs-left, .fs-right { gap: 6px; padding-top: 6px; padding-bottom: 6px; }
+  .fs-left .fs-btn, .fs-right .fs-btn { min-width: 50px; min-height: 50px; padding: 4px 5px; font-size: 11px; border-radius: 12px; }
+  .fs-left .fs-btn svg, .fs-right .fs-btn svg { width: 22px; height: 22px; }
+  .fs-bottom { padding-top: 8px; gap: 8px; }
+  .fs-bottom .fs-btn { min-width: 72px; min-height: 56px; }
+  .fs-info .mk-name { font-size: 16px; }
+  .fs-toast { top: 12px; max-width: 92%; }
+  header.top { flex-wrap: wrap; padding-left: 12px; padding-right: 12px; }
+  header.top h1 { flex: 1 1 55%; min-width: 0; }
+  header.top button { font-size: 13px; padding: 6px 10px; min-height: 34px; }
+}
+@media (max-height: 520px) {
+  .fs-body { flex-direction: row; }
+  .fs-info { flex-direction: column; width: 160px; overflow: auto; border-bottom: 0; border-right: 1px solid #222; }
+  .fs-info .mk-guide { width: 100%; height: 110px; }
+  .fs-info .mk-name { font-size: 14px; flex: none; }
+  .fs-mid { display: flex; flex-direction: row; flex: 1; }
+  .fs-left, .fs-right { flex-direction: column; gap: 6px; padding: 4px 6px; }
+  .fs-left .fs-btn, .fs-right .fs-btn { min-width: 50px; min-height: 46px; }
+  .fs-bottom { padding: 6px 8px; }
+  .fs-bottom .fs-btn { min-height: 48px; }
+}
 </style>
 </head>
 <body>

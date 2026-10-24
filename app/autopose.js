@@ -40,7 +40,11 @@
       ['D', 'E'].forEach((s) => {
         const sfx = s;
         if (view === 'ant') {
-          if (ear) put('cab' + sfx, ear[s]);
+          if (ear) {
+            // o modelo põe a orelha dentro do contorno do rosto; o manual pede o lóbulo/ângulo da mandíbula, mais para fora e para baixo
+            const dd = Math.abs(ear.E.x - ear.D.x) || 1, dir = s === 'D' ? -1 : 1;
+            put('cab' + sfx, { x: ear[s].x + dir * 0.2 * dd, y: ear[s].y + 0.2 * dd });
+          }
           if (sh) put('acr' + sfx, sh[s]);
           if (sh && hip) {
             put('axi' + sfx, along(sh[s], hip[s], 0.18));

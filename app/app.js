@@ -447,7 +447,7 @@
     const root = document.createElement('div');
     root.className = 'fs';
     root.innerHTML = `<div class="fs-head"><button type="button" class="fs-x" data-act="close" aria-label="Fechar">${ICON.close}</button><div class="fs-title"><b>${esc(o.title)}</b><span class="fs-sub"></span></div></div>
-      <div class="fs-area"><canvas class="fs-cv"></canvas>${o.overlayHtml || ''}<div class="fs-left">${o.leftHtml || ''}</div><div class="fs-right ${o.rightLow ? 'low' : ''}">${o.rightHtml || ''}</div><div class="fs-drawer" hidden></div><div class="fs-toast" hidden></div></div>
+      <div class="fs-body"><div class="fs-info">${o.infoHtml || ''}</div><div class="fs-mid"><div class="fs-left">${o.leftHtml || ''}</div><div class="fs-area"><canvas class="fs-cv"></canvas>${o.overlayHtml || ''}<div class="fs-drawer" hidden></div><div class="fs-toast" hidden></div></div><div class="fs-right">${o.rightHtml || ''}</div></div></div>
       <div class="fs-bottom">${o.bottomHtml || ''}</div>`;
     document.body.appendChild(root);
     const area = root.querySelector('.fs-area'), cv = root.querySelector('.fs-cv');
@@ -460,7 +460,7 @@
       cv.width = Math.round(S.w * dpr); cv.height = Math.round(S.h * dpr);
       g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
-    S.fit = () => { const s = Math.min((S.w - 16) / iw(), (S.h - 16) / ih()); S.tf = { s, x: (S.w - iw() * s) / 2, y: (S.h - ih() * s) / 2 }; S.draw(); };
+    S.fit = () => { S.userView = false; const s = Math.min((S.w - 16) / iw(), (S.h - 16) / ih()); S.tf = { s, x: (S.w - iw() * s) / 2, y: (S.h - ih() * s) / 2 }; S.draw(); };
     S.setImage = (img) => { S.img = img; S.imgC = null; S.fit(); };
     const contrastImg = () => {
       if (S.imgC) return S.imgC;
@@ -493,7 +493,7 @@
       g.fillStyle = '#000'; g.fillRect(0, 0, S.w, S.h);
       paint(g, S.tf, false);
       if (S.loupe) {
-        const R = Math.min(80, S.w / 5), Z = 3, { p, q } = S.loupe;
+        const R = Math.min(72, S.w / 6), Z = 3, { p, q } = S.loupe;
         const cx = R + 12, cy = R + 12; // sempre no canto superior esquerdo, onde não há botão nem figura
         g.save(); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.clip();
         g.fillStyle = '#000'; g.fillRect(cx - R, cy - R, 2 * R, 2 * R);
@@ -520,12 +520,20 @@
       }
       const q = toImg(p);
       if (!S.panMode) {
-        const t = o.hit && o.hit(q, 26 / S.tf.s);
-        if (t) { if (o.start) o.start(t); S.drag = { t, moved: false }; S.loupe = { p, q }; S.draw(); return; }
+        const t = o.hit && o.hit(q, (e.pointerType === 'touch' ? 34 : 24) / S.tf.s);
+        if (t) {
+          if (o.start) o.start(t);
+          // Arrastar um ponto existente não faz o ponto pular para o dedo: ele mantém a distância do toque inicial.
+          const cur = o.pos && o.pos(t);
+          S.drag = { t, moved: false, off: cur ? { x: cur.x - q.x, y: cur.y - q.y } : { x: 0, y: 0 } };
+          S.loupe = { p, q: cur ? { x: cur.x, y: cur.y } : q };
+          S.draw(); return;
+        }
         const n = o.place && o.place(q);
         if (n) { S.drag = { t: n, moved: true, placed: true }; S.loupe = { p, q }; S.draw(); return; }
       }
-      S.drag = { pan: p, tf: { ...S.tf } };
+      // Um dedo em área vazia não mexe na foto (evita a tela "fugir" quando o toque erra o ponto): use dois dedos ou o botão Mover.
+      if (S.panMode || e.pointerType !== 'touch') S.drag = { pan: p, tf: { ...S.tf } };
     };
     cv.onpointermove = (e) => {
       if (!S.ptrs.has(e.pointerId)) return;
@@ -534,13 +542,13 @@
       if (S.pinch && S.ptrs.size === 2) {
         const [a, b] = [...S.ptrs.values()];
         const d = Math.hypot(a.x - b.x, a.y - b.y), c = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, t0 = S.pinch.tf, f = d / S.pinch.d;
-        S.tf = { s: t0.s * f, x: c.x - (S.pinch.c.x - t0.x) * f, y: c.y - (S.pinch.c.y - t0.y) * f };
+        S.tf = { s: t0.s * f, x: c.x - (S.pinch.c.x - t0.x) * f, y: c.y - (S.pinch.c.y - t0.y) * f }; S.userView = true;
         S.draw();
         return;
       }
       if (!S.drag) return;
-      if (S.drag.pan) { S.tf.x = S.drag.tf.x + p.x - S.drag.pan.x; S.tf.y = S.drag.tf.y + p.y - S.drag.pan.y; }
-      else { const q = toImg(p); S.drag.moved = true; if (o.move) o.move(S.drag.t, q); S.loupe = { p, q }; }
+      if (S.drag.pan) { S.userView = true; S.tf.x = S.drag.tf.x + p.x - S.drag.pan.x; S.tf.y = S.drag.tf.y + p.y - S.drag.pan.y; }
+      else { const q0 = toImg(p), off = S.drag.off || { x: 0, y: 0 }, q = { x: q0.x + off.x, y: q0.y + off.y }; S.drag.moved = true; if (o.move) o.move(S.drag.t, q); S.loupe = { p, q }; }
       S.draw();
     };
     const up = (e) => {
@@ -551,6 +559,13 @@
       S.draw();
     };
     cv.onpointerup = up; cv.onpointercancel = up;
+    cv.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const p = pos(e), f = Math.exp(-e.deltaY * 0.0015), s2 = Math.max(S.tf.s * 0.3, Math.min(S.tf.s * f, S.tf.s * 6));
+      const k = s2 / S.tf.s;
+      S.tf = { s: s2, x: p.x - (p.x - S.tf.x) * k, y: p.y - (p.y - S.tf.y) * k };
+      S.userView = true; S.draw();
+    }, { passive: false });
     root.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (!b || !root.contains(b)) return;
@@ -578,7 +593,14 @@
       if (o.onClose) o.onClose();
     };
     // Girar o iPad: o palco ocupa a tela inteira nos dois sentidos; refaz o tamanho e o enquadramento.
-    const ro = new ResizeObserver(() => { if (!S.alive) return; size(); S.fit(); });
+    const ro = new ResizeObserver(() => {
+      if (!S.alive) return;
+      const ow = S.w, oh = S.h;
+      size();
+      // Mudou o tamanho da tela (barra do navegador, teclado): mantém o zoom e a posição em vez de recentralizar.
+      if (S.userView) { const c = { x: (ow / 2 - S.tf.x) / S.tf.s, y: (oh / 2 - S.tf.y) / S.tf.s }; S.tf.x = S.w / 2 - c.x * S.tf.s; S.tf.y = S.h / 2 - c.y * S.tf.s; S.draw(); }
+      else S.fit();
+    });
     ro.observe(area);
     const onOrient = () => setTimeout(() => { if (S.alive) { size(); S.fit(); } }, 300);
     window.addEventListener('orientationchange', onOrient);
@@ -602,11 +624,12 @@
       const S = makeStage({
         img,
         title: def.label + (set === 2 ? ' — marcação 2' : ''),
-        overlayHtml: '<div class="mk-guide" role="button" aria-label="Ampliar a figura"></div><div class="mk-name"></div>',
+        infoHtml: '<div class="mk-guide" role="button" aria-label="Ampliar a figura"></div><div class="mk-name"></div>',
         leftHtml: fsBtn('grid', ICON.grid, 'Grade') + fsBtn('contrast', ICON.contrast, 'Contraste'),
-        rightHtml: fsBtn('move', ICON.move, 'Mover') + fsBtn('list', ICON.list, 'Pontos') + fsBtn('auto', svgI('<circle cx="12" cy="5" r="2"/><path d="M12 7v7M7 10h10M9 21l3-7 3 7"/>'), 'Sugerir pontos') + fsBtn('fit', ICON.fit, 'Ajustar'),
+        rightHtml: fsBtn('move', ICON.move, 'Mover') + fsBtn('list', ICON.list, 'Pontos') + fsBtn('auto', svgI('<circle cx="12" cy="5" r="2"/><path d="M12 7v7M7 10h10M9 21l3-7 3 7"/>'), 'Sugerir') + fsBtn('fit', ICON.fit, 'Ajustar'),
         bottomHtml: fsBtn('undo', ICON.back, 'Desfazer') + fsBtn('next', ICON.pin, 'Próximo', 'primary') + fsBtn('redo', ICON.redo, 'Refazer ponto'),
         drawOverlay: (c, tf) => drawView(c, img, key, v, tf, 1, { noImage: true, grid: false, style: 'plain', noLabels: true, noFree: true, sel: cur, set }),
+        pos: (id) => P()[id],
         hit: (q, r) => {
           const c0 = P()[cur];
           if (c0 && Math.hypot(c0.x - q.x, c0.y - q.y) < r) return cur;
@@ -728,6 +751,7 @@
           marks.forEach((q) => dot(c, q, u, '#00bcd4', false));
           c.restore();
         },
+        pos: (t) => marks[t - 1],
         hit: (q, r) => { let best = null, bd = r; marks.forEach((p, i) => { const d = Math.hypot(p.x - q.x, p.y - q.y); if (d < bd) { bd = d; best = i + 1; } }); return best; },
         start: (t) => { hist.push({ i: t - 1, prev: { ...marks[t - 1] } }); },
         place: (q) => { if (marks.length >= 2) return null; hist.push({ i: marks.length, prev: null }); marks.push(q); return marks.length; },
@@ -1754,6 +1778,7 @@
         rightHtml: fsBtn('move', ICON.move, 'Mover') + fsBtn('list', ICON.list, 'Ângulos') + fsBtn('fit', ICON.fit, 'Ajustar'),
         bottomHtml: fsBtn('undo', ICON.back, 'Desfazer') + fsBtn('redo', ICON.redo, 'Refazer ponto') + fsBtn('nudge', ICON.nudge, 'Ajuste fino') + (cfg.templates && cfg.templates.length ? fsBtn('model', ICON.list, 'Modelo') : ''),
         drawOverlay: (c, tf, loupe) => { c.save(); c.translate(tf.x, tf.y); c.scale(tf.s, tf.s); drawFreeAngles(c, cfg.free, 1 / tf.s, { sel: W.sel, labels: !loupe, numbers: !loupe }); c.restore(); },
+        pos: (t) => cfg.free[t.ai] && cfg.free[t.ai].pts[t.pi],
         hit: (q, r) => {
           let best = null, bd = r;
           cfg.free.forEach((f, ai) => f.pts.forEach((p, pi) => { if (!p) return; const d = Math.hypot(p.x - q.x, p.y - q.y); if (d < bd) { bd = d; best = { ai, pi }; } }));
