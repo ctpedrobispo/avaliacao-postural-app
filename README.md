@@ -79,6 +79,12 @@ Do arquivo `Base_Regras_App_Postural_v4_0.json` (proposta em revisão profission
 - **Fontes:** as 11 fontes da base ficam na tela Referências (como contexto, não como ponto de corte) e não entram no laudo.
 - **Não absorvido por ora:** códigos PB-* (o app mantém A3, B3, C8...), escápulas, FPI-6 (exame com as mãos), afundo, projeção frontal dinâmica e tabelas normativas do joelho na parede. O erro técnico de medida (TEM) do app, vindo da repetição da marcação, não equivale à menor mudança detectável (MDC) de teste-reteste.
 
+## Guia de fotos com figuras (v13, 24/10/2026)
+
+- O **Guia de fotos para o aluno** agora mostra um corpo humano em **posição anatômica** nas quatro posições (de frente, de costas, lado direito e lado esquerdo para o celular), com as marcas de D e E, a fita dos pés no chão e um diagrama do celular em pé, a cerca de 1 m do chão e 3 m do aluno.
+- As figuras são desenhadas no próprio app (SVG), sem imagem de terceiros. Entram no PDF/impressão do guia.
+- Botão **Compartilhar figuras (imagem)**: gera um PNG e abre o compartilhamento do aparelho (WhatsApp); onde não houver compartilhamento, baixa o arquivo.
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:
