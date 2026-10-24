@@ -1,25 +1,26 @@
 // Figuras-guia: figura do corpo com o ponto a marcar destacado.
 // São imagens ilustrativas (não são fotos do aluno nem medidas): servem para o avaliador não se perder.
 (function (root) {
-  // Coordenadas na figura (360 x 542 px). Anterior: o lado direito do aluno (D) fica à ESQUERDA da figura.
+  // Coordenadas na figura (360 x 542 px; imagens do Pedro, guide-*.jpg). Anterior: o lado direito do aluno (D) fica à ESQUERDA da figura.
   // Posterior: o lado direito do aluno fica à DIREITA. Lateral: figura olhando para a DIREITA;
   // quando o aluno olha para a esquerda, a figura é espelhada.
   const ANT = {
-    cabD: [161, 70], cabE: [203, 70], nar: [181, 64], est: [180, 99], xif: [180, 190],
-    acrD: [126, 111], acrE: [240, 111], axiD: [134, 150], axiE: [226, 150],
-    cxtD: [145, 220], cxtE: [216, 220], troD: [141, 235], troE: [220, 235],
-    asiD: [146, 246], asiE: [219, 246], joeD: [151, 387], joeE: [210, 387],
-    torD: [150, 505], torE: [212, 505], dedD: [141, 531], dedE: [220, 531],
+    cabD: [160, 60], cabE: [203, 60], nar: [180, 56], est: [181, 100], xif: [181, 148],
+    acrD: [126, 103], acrE: [236, 103], axiD: [133, 128], axiE: [228, 128],
+    cxtD: [146, 180], cxtE: [214, 180], troD: [138, 208], troE: [222, 208],
+    asiD: [141, 222], asiE: [219, 222], joeD: [148, 380], joeE: [210, 380],
+    torD: [146, 490], torE: [212, 490], dedD: [128, 527], dedE: [224, 527],
   };
   const POST = {
-    orD: [205, 62], orE: [160, 62], c7p: [183, 89], ombD: [239, 110], ombE: [126, 110],
-    axiD: [231, 165], axiE: [135, 165], cuD: [220, 222], cuE: [146, 222],
-    psiD: [200, 282], psiE: [165, 282], fen: [183, 292], popD: [210, 397], popE: [152, 397],
-    calD: [216, 517], calE: [149, 517], tnD1: [213, 475], tnD2: [215, 510], tnE1: [151, 475], tnE2: [150, 510],
+    orD: [203, 59], orE: [158, 59], c7p: [180, 90], ombD: [238, 101], ombE: [122, 101],
+    axiD: [228, 147], axiE: [133, 147], cuD: [222, 205], cuE: [140, 205],
+    psiD: [196, 224], psiE: [164, 224], fen: [181, 246], popD: [211, 376], popE: [147, 376],
+    calD: [212, 516], calE: [147, 516], tnD1: [212, 470], tnD2: [212, 500], tnE1: [147, 470], tnE2: [147, 500],
   };
+  // Na lateral o braço do modelo cobre o quadril: EIAS, EIPS e trocânter são posições aproximadas.
   const LAT = {
-    tra: [176, 62], c7: [150, 98], acr: [172, 115], asi: [200, 247], psi: [152, 243],
-    tro: [175, 287], joe: [176, 395], mal: [172, 505], ded: [215, 525],
+    tra: [174, 50], c7: [145, 90], acr: [150, 101], asi: [172, 224], psi: [140, 218],
+    tro: [160, 276], joe: [168, 378], mal: [154, 498], ded: [205, 521],
   };
   const TABLE = { ant: ANT, post: POST, latD: LAT, latE: LAT };
   const IMG = { ant: 'guide-ant.jpg', post: 'guide-post.jpg', latD: 'guide-lat.jpg', latE: 'guide-lat.jpg' };

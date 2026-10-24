@@ -85,6 +85,12 @@ Do arquivo `Base_Regras_App_Postural_v4_0.json` (proposta em revisão profission
 - As figuras do guia são imagens de modelo anatômico criadas pelo Pedro no Gemini (frente, costas e lado direito; o lado esquerdo é o lado direito espelhado), recortadas e reduzidas para cerca de 30 KB cada (`app/guia-*.jpg`). Servem só para mostrar as posições (não são mapa muscular nem análise de músculos). Entram no PDF/impressão do guia e na imagem para compartilhar (v15).
 - Botão **Compartilhar figuras (imagem)**: gera um PNG e abre o compartilhamento do aparelho (WhatsApp); onde não houver compartilhamento, baixa o arquivo.
 
+## Figura-guia dos pontos com imagens do Pedro (v16, 24/10/2026)
+
+- As figuras que mostram **onde marcar cada ponto** (`app/guide-ant.jpg`, `guide-post.jpg`, `guide-lat.jpg`) agora são as imagens de modelo anatômico criadas pelo Pedro no Gemini, no lugar das figuras anteriores, cuja autoria estava pendente. A lateral esquerda é a lateral direita espelhada pelo app.
+- As coordenadas de todos os pontos (anterior 21, posterior 20, lateral 9) foram remedidas nas novas imagens. Na lateral, o braço do modelo cobre o quadril: **EIAS, EIPS e trocânter são posições aproximadas** (PENDENTE DE CONFERÊNCIA pelo Pedro).
+- Atenção para publicar: o histórico do repositório ainda contém as figuras anteriores; antes de divulgar, recriar o repositório sem esse histórico.
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:

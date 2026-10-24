@@ -1,5 +1,5 @@
 // Mantém o app funcionando sem internet: guarda os arquivos do app (não guarda dados de alunos).
-const CACHE = 'avaliacao-postural-v15';
+const CACHE = 'avaliacao-postural-v16';
 const FILES = ['./', 'index.html', 'angles.js', 'guide.js', 'movimento.js', 'autopose.js', 'report.js', 'app.js', 'manifest.webmanifest', 'logo-ct.png', 'logo-correplus.webp', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'guide-ant.jpg', 'guide-post.jpg', 'guide-lat.jpg', 'guia-frente.jpg', 'guia-costas.jpg', 'guia-lado-d.jpg', 'guia-lado-e.jpg'];
 self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES))));
 self.addEventListener('activate', (e) => e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))));
