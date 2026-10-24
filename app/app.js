@@ -1521,47 +1521,30 @@
   ].join('\n');
 
   // Figuras do guia do aluno: corpo em posição anatômica nas quatro posições da foto e o arranjo do celular.
-  // Desenhadas aqui mesmo (SVG), sem imagem de terceiros. Servem só para mostrar as posições.
+  // Desenhadas no app (figuras.js, SVG), sem imagem de terceiros. Servem só para mostrar as posições.
+  const GUIDE_W = 800, GUIDE_H = 600;
   function guideFigures(px) {
-    const W = 640, H = 520;
-    const BODY = '#9db4cc', DARK = '#4a6580', INK = '#1d2b3a', TAPE = '#e0a100';
-    const limb = (x1, y1, x2, y2, w) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${BODY}" stroke-width="${w}" stroke-linecap="round"/>`;
-    // De frente ou de costas (cx = centro da figura). Posição anatômica: braços levemente afastados, palmas à frente.
-    const frontBack = (cx, back) => `<g transform="translate(${cx - 60},20)">
-      <ellipse cx="60" cy="24" rx="14" ry="17" fill="${BODY}"/>${back ? `<path d="M46 22 Q46 6 60 6 Q74 6 74 22 Q70 14 60 14 Q50 14 46 22Z" fill="${DARK}"/>` : `<circle cx="55" cy="22" r="1.6" fill="${DARK}"/><circle cx="65" cy="22" r="1.6" fill="${DARK}"/>`}
-      <rect x="54" y="38" width="12" height="12" rx="4" fill="${BODY}"/>
-      <path d="M30 54 Q60 46 90 54 L87 128 Q85 150 81 162 L39 162 Q35 150 33 128 Z" fill="${BODY}"/>
-      <path d="M38 160 L82 160 L86 182 L34 182 Z" fill="${BODY}"/>
-      ${limb(27, 60, 12, 148, 11)}${limb(93, 60, 108, 148, 11)}
-      <ellipse cx="10" cy="158" rx="5" ry="9" fill="${BODY}" transform="rotate(8 10 158)"/><ellipse cx="110" cy="158" rx="5" ry="9" fill="${BODY}" transform="rotate(-8 110 158)"/>
-      ${limb(47, 184, 45, 278, 20)}${limb(73, 184, 75, 278, 20)}
-      <ellipse cx="43" cy="287" rx="11" ry="5.5" fill="${BODY}"/><ellipse cx="77" cy="287" rx="11" ry="5.5" fill="${BODY}"/>
-      <rect x="30" y="294" width="24" height="3" fill="${TAPE}"/><rect x="66" y="294" width="24" height="3" fill="${TAPE}"/>
-      <text x="${back ? 94 : 26}" y="112" font-size="15" font-weight="700" fill="${INK}" text-anchor="middle">D</text>
-      <text x="${back ? 26 : 94}" y="112" font-size="15" font-weight="700" fill="${INK}" text-anchor="middle">E</text></g>`;
-    // De lado (olhando para a direita da figura, ou espelhada). sideLabel: lado do aluno que fica virado para o celular.
-    const side = (cx, toRight, lado) => `<g transform="translate(${cx - 60},20) ${toRight ? '' : 'translate(120,0) scale(-1,1)'}">
-      <ellipse cx="60" cy="24" rx="15" ry="17" fill="${BODY}"/><path d="M73 22 L81 27 L73 30Z" fill="${BODY}"/>
-      <rect x="54" y="38" width="13" height="12" rx="4" fill="${BODY}"/>
-      <path d="M48 54 Q68 48 72 62 L73 120 Q71 150 69 162 L69 182 L47 182 L45 150 Q43 118 46 82 Z" fill="${BODY}"/>
-      ${limb(58, 62, 60, 148, 11)}<ellipse cx="60" cy="158" rx="6" ry="9" fill="${BODY}"/>
-      ${limb(58, 184, 58, 278, 21)}
-      <path d="M46 281 L88 285 Q94 288 88 293 L46 293Z" fill="${BODY}"/>
-      <rect x="44" y="294" width="46" height="3" fill="${TAPE}"/></g>
-      <text x="${cx}" y="120" font-size="15" font-weight="700" fill="${INK}" text-anchor="middle">${lado}</text>`;
-    const cap = (cx, l1, l2) => `<text x="${cx}" y="340" font-size="14" font-weight="700" fill="${INK}" text-anchor="middle">${l1}</text><text x="${cx}" y="358" font-size="12" fill="${INK}" text-anchor="middle">${l2}</text>`;
-    const xs = [80, 240, 400, 560];
-    // Arranjo: celular em pé, ~1 m do chão, ~3 m do aluno.
-    const setup = `<g transform="translate(0,372)"><line x1="40" y1="100" x2="600" y2="100" stroke="${INK}" stroke-width="1.5"/>
-      <text x="40" y="24" font-size="12" fill="${INK}">celular em pé, a cerca de 1 m do chão, sem inclinar</text>
+    const W = GUIDE_W, H = GUIDE_H;
+    const BODY = '#9db4cc', INK = '#1d2b3a', TAPE = '#e0a100';
+    const S = 0.7, xs = [100, 300, 500, 700], Y0 = 26;
+    const fig = (view, i) => Figuras.use(view, xs[i] - 100 * S, Y0, S);
+    const footY = Y0 + 531 * S;
+    const tape = (cx, w, gap) => (gap ? [-1, 1].map((k) => `<rect x="${cx + k * gap - w / 2}" y="${footY}" width="${w}" height="3" fill="${TAPE}"/>`).join('') : `<rect x="${cx - w / 2}" y="${footY}" width="${w}" height="3" fill="${TAPE}"/>`);
+    const lab = (x, y, t) => `<text x="${x}" y="${y}" font-size="17" font-weight="700" fill="${INK}" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="4">${t}</text>`;
+    const cap = (cx, l1, l2) => `<text x="${cx}" y="${Y0 + 560 * S}" font-size="16" font-weight="700" fill="${INK}" text-anchor="middle">${l1}</text><text x="${cx}" y="${Y0 + 560 * S + 19}" font-size="13" fill="${INK}" text-anchor="middle">${l2}</text>`;
+    const ly = Y0 + 200 * S;
+    const setup = `<g transform="translate(0,452)"><line x1="40" y1="100" x2="760" y2="100" stroke="${INK}" stroke-width="1.5"/>
+      <text x="40" y="24" font-size="13" fill="${INK}">celular em pé, a cerca de 1 m do chão, sem inclinar</text>
       <rect x="84" y="40" width="12" height="22" rx="2.5" fill="${INK}"/><line x1="90" y1="62" x2="90" y2="100" stroke="${INK}" stroke-width="3"/><line x1="90" y1="82" x2="78" y2="100" stroke="${INK}" stroke-width="2"/><line x1="90" y1="82" x2="102" y2="100" stroke="${INK}" stroke-width="2"/>
-      <path d="M98 48 L518 18 M98 54 L518 94" stroke="${INK}" stroke-width="1" stroke-dasharray="4 4" fill="none"/>
-      <ellipse cx="540" cy="24" rx="8" ry="9" fill="${BODY}"/><line x1="540" y1="33" x2="540" y2="72" stroke="${BODY}" stroke-width="12" stroke-linecap="round"/><line x1="540" y1="72" x2="540" y2="96" stroke="${BODY}" stroke-width="14" stroke-linecap="round"/>
-      <line x1="90" y1="118" x2="540" y2="118" stroke="${INK}" stroke-width="1.5"/><path d="M98 113 L90 118 L98 123M532 113 L540 118 L532 123" fill="none" stroke="${INK}" stroke-width="1.5"/>
-      <text x="315" y="138" font-size="13" font-weight="700" fill="${INK}" text-anchor="middle">cerca de 3 m até você</text></g>`;
-    const body = `<rect width="${W}" height="${H}" fill="#fff"/>
-      <text x="${W / 2}" y="16" font-size="13" fill="${INK}" text-anchor="middle">Corpo inteiro no quadro, pés na largura do quadril sobre a fita, braços soltos, olhar no horizonte</text>
-      ${frontBack(xs[0], false)}${frontBack(xs[1], true)}${side(xs[2], true, 'D')}${side(xs[3], false, 'E')}
+      <path d="M98 48 L678 18 M98 54 L678 94" stroke="${INK}" stroke-width="1" stroke-dasharray="4 4" fill="none"/>
+      <ellipse cx="700" cy="24" rx="8" ry="9" fill="${BODY}"/><line x1="700" y1="33" x2="700" y2="72" stroke="${BODY}" stroke-width="12" stroke-linecap="round"/><line x1="700" y1="72" x2="700" y2="96" stroke="${BODY}" stroke-width="14" stroke-linecap="round"/>
+      <line x1="90" y1="120" x2="700" y2="120" stroke="${INK}" stroke-width="1.5"/><path d="M98 115 L90 120 L98 125M692 115 L700 120 L692 125" fill="none" stroke="${INK}" stroke-width="1.5"/>
+      <text x="395" y="141" font-size="14" font-weight="700" fill="${INK}" text-anchor="middle">cerca de 3 m até você</text></g>`;
+    const body = `<rect width="${W}" height="${H}" fill="#fff"/>${Figuras.defs()}
+      <text x="${W / 2}" y="16" font-size="14" fill="${INK}" text-anchor="middle">Corpo inteiro no quadro, pés na largura do quadril sobre a fita, braços soltos, olhar no horizonte</text>
+      ${fig('front', 0)}${fig('back', 1)}${fig('sider', 2)}${fig('sidel', 3)}
+      ${tape(xs[0], 20, 15)}${tape(xs[1], 20, 15)}${tape(xs[2], 44)}${tape(xs[3], 44)}
+      ${lab(xs[0] - 84, ly, 'D')}${lab(xs[0] + 84, ly, 'E')}${lab(xs[1] - 84, ly, 'E')}${lab(xs[1] + 84, ly, 'D')}${lab(xs[2], Y0 + 150 * S, 'D')}${lab(xs[3], Y0 + 150 * S, 'E')}
       ${cap(xs[0], '1) De frente', 'palmas à frente')}${cap(xs[1], '2) De costas', '')}${cap(xs[2], '3) De lado', 'lado direito para o celular')}${cap(xs[3], '4) De lado', 'lado esquerdo para o celular')}
       ${setup}`;
     const size = px ? `width="${px}" height="${Math.round((px * H) / W)}"` : 'width="100%"';
@@ -1575,7 +1558,7 @@
       img.src = url;
       await img.decode();
       const c = document.createElement('canvas');
-      c.width = 1920; c.height = Math.round((1920 * 520) / 640);
+      c.width = 1920; c.height = Math.round((1920 * GUIDE_H) / GUIDE_W);
       const x = c.getContext('2d');
       x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
       x.drawImage(img, 0, 0, c.width, c.height);
