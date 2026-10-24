@@ -82,7 +82,7 @@ Do arquivo `Base_Regras_App_Postural_v4_0.json` (proposta em revisão profission
 ## Guia de fotos com figuras (v13, 24/10/2026)
 
 - O **Guia de fotos para o aluno** agora mostra um corpo humano em **posição anatômica** nas quatro posições (de frente, de costas, lado direito e lado esquerdo para o celular), com as marcas de D e E, a fita dos pés no chão e um diagrama do celular em pé, a cerca de 1 m do chão e 3 m do aluno.
-- As figuras são desenhadas no próprio app (`figuras.js`, SVG), sem imagem de terceiros: corpo anatômico estilizado, com músculos, só para mostrar as posições (não é mapa muscular nem análise de músculos). Entram no PDF/impressão do guia (v14).
+- As figuras do guia são imagens de modelo anatômico criadas pelo Pedro no Gemini (frente, costas e lado direito; o lado esquerdo é o lado direito espelhado), recortadas e reduzidas para cerca de 30 KB cada (`app/guia-*.jpg`). Servem só para mostrar as posições (não são mapa muscular nem análise de músculos). Entram no PDF/impressão do guia e na imagem para compartilhar (v15).
 - Botão **Compartilhar figuras (imagem)**: gera um PNG e abre o compartilhamento do aparelho (WhatsApp); onde não houver compartilhamento, baixa o arquivo.
 
 ## Regras seguidas

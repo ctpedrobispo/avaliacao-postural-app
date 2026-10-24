@@ -1520,39 +1520,49 @@
     'Envie as fotos somente para o seu avaliador (não para grupos). As imagens são usadas só para a sua avaliação.',
   ].join('\n');
 
-  // Figuras do guia do aluno: corpo em posição anatômica nas quatro posições da foto e o arranjo do celular.
-  // Desenhadas no app (figuras.js, SVG), sem imagem de terceiros. Servem só para mostrar as posições.
-  const GUIDE_W = 800, GUIDE_H = 600;
-  function guideFigures(px) {
+  // Figuras do guia do aluno: modelo anatômico (imagens do Pedro, criadas por ele) nas quatro posições da foto
+  // e o arranjo do celular. Servem só para mostrar as posições.
+  const GUIDE_W = 800, GUIDE_H = 540;
+  const GUIDE_IMGS = ['frente', 'costas', 'lado-d', 'lado-e'];
+  function guideFigures(px, imgs) {
     const W = GUIDE_W, H = GUIDE_H;
-    const BODY = '#9db4cc', INK = '#1d2b3a', TAPE = '#e0a100';
-    const S = 0.7, xs = [100, 300, 500, 700], Y0 = 26;
-    const fig = (view, i) => Figuras.use(view, xs[i] - 100 * S, Y0, S);
-    const footY = Y0 + 531 * S;
-    const tape = (cx, w, gap) => (gap ? [-1, 1].map((k) => `<rect x="${cx + k * gap - w / 2}" y="${footY}" width="${w}" height="3" fill="${TAPE}"/>`).join('') : `<rect x="${cx - w / 2}" y="${footY}" width="${w}" height="3" fill="${TAPE}"/>`);
-    const lab = (x, y, t) => `<text x="${x}" y="${y}" font-size="17" font-weight="700" fill="${INK}" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="4">${t}</text>`;
-    const cap = (cx, l1, l2) => `<text x="${cx}" y="${Y0 + 560 * S}" font-size="16" font-weight="700" fill="${INK}" text-anchor="middle">${l1}</text><text x="${cx}" y="${Y0 + 560 * S + 19}" font-size="13" fill="${INK}" text-anchor="middle">${l2}</text>`;
-    const ly = Y0 + 200 * S;
-    const setup = `<g transform="translate(0,452)"><line x1="40" y1="100" x2="760" y2="100" stroke="${INK}" stroke-width="1.5"/>
+    const BODY = '#9db4cc', INK = '#1d2b3a';
+    const PW = 180, PH = Math.round(PW / 0.62), GAP = 20, X0 = 10, Y0 = 26;
+    const xs = [0, 1, 2, 3].map((i) => X0 + i * (PW + GAP));
+    const img = (i) => `<image href="${(imgs && imgs[GUIDE_IMGS[i]]) || 'guia-' + GUIDE_IMGS[i] + '.jpg'}" x="${xs[i]}" y="${Y0}" width="${PW}" height="${PH}" preserveAspectRatio="xMidYMid slice"/>`;
+    const lab = (x, y, t) => `<text x="${x}" y="${y}" font-size="18" font-weight="700" fill="#fff" text-anchor="middle" paint-order="stroke" stroke="#1d2b3a" stroke-width="4">${t}</text>`;
+    const cap = (i, l1, l2) => `<text x="${xs[i] + PW / 2}" y="${Y0 + PH + 20}" font-size="16" font-weight="700" fill="${INK}" text-anchor="middle">${l1}</text><text x="${xs[i] + PW / 2}" y="${Y0 + PH + 38}" font-size="13" fill="${INK}" text-anchor="middle">${l2}</text>`;
+    const ly = Y0 + Math.round(PH * 0.42);
+    const sy = Y0 + PH + 52;
+    const setup = `<g transform="translate(0,${sy})"><line x1="40" y1="100" x2="760" y2="100" stroke="${INK}" stroke-width="1.5"/>
       <text x="40" y="24" font-size="13" fill="${INK}">celular em pé, a cerca de 1 m do chão, sem inclinar</text>
       <rect x="84" y="40" width="12" height="22" rx="2.5" fill="${INK}"/><line x1="90" y1="62" x2="90" y2="100" stroke="${INK}" stroke-width="3"/><line x1="90" y1="82" x2="78" y2="100" stroke="${INK}" stroke-width="2"/><line x1="90" y1="82" x2="102" y2="100" stroke="${INK}" stroke-width="2"/>
       <path d="M98 48 L678 18 M98 54 L678 94" stroke="${INK}" stroke-width="1" stroke-dasharray="4 4" fill="none"/>
       <ellipse cx="700" cy="24" rx="8" ry="9" fill="${BODY}"/><line x1="700" y1="33" x2="700" y2="72" stroke="${BODY}" stroke-width="12" stroke-linecap="round"/><line x1="700" y1="72" x2="700" y2="96" stroke="${BODY}" stroke-width="14" stroke-linecap="round"/>
       <line x1="90" y1="120" x2="700" y2="120" stroke="${INK}" stroke-width="1.5"/><path d="M98 115 L90 120 L98 125M692 115 L700 120 L692 125" fill="none" stroke="${INK}" stroke-width="1.5"/>
       <text x="395" y="141" font-size="14" font-weight="700" fill="${INK}" text-anchor="middle">cerca de 3 m até você</text></g>`;
-    const body = `<rect width="${W}" height="${H}" fill="#fff"/>${Figuras.defs()}
+    const body = `<rect width="${W}" height="${H}" fill="#fff"/>
       <text x="${W / 2}" y="16" font-size="14" fill="${INK}" text-anchor="middle">Corpo inteiro no quadro, pés na largura do quadril sobre a fita, braços soltos, olhar no horizonte</text>
-      ${fig('front', 0)}${fig('back', 1)}${fig('sider', 2)}${fig('sidel', 3)}
-      ${tape(xs[0], 20, 15)}${tape(xs[1], 20, 15)}${tape(xs[2], 44)}${tape(xs[3], 44)}
-      ${lab(xs[0] - 84, ly, 'D')}${lab(xs[0] + 84, ly, 'E')}${lab(xs[1] - 84, ly, 'E')}${lab(xs[1] + 84, ly, 'D')}${lab(xs[2], Y0 + 150 * S, 'D')}${lab(xs[3], Y0 + 150 * S, 'E')}
-      ${cap(xs[0], '1) De frente', 'palmas à frente')}${cap(xs[1], '2) De costas', '')}${cap(xs[2], '3) De lado', 'lado direito para o celular')}${cap(xs[3], '4) De lado', 'lado esquerdo para o celular')}
+      ${[0, 1, 2, 3].map(img).join('')}
+      ${lab(xs[0] + 18, ly, 'D')}${lab(xs[0] + PW - 18, ly, 'E')}${lab(xs[1] + 18, ly, 'E')}${lab(xs[1] + PW - 18, ly, 'D')}
+      ${cap(0, '1) De frente', 'palmas à frente')}${cap(1, '2) De costas', '')}${cap(2, '3) De lado', 'lado direito para o celular')}${cap(3, '4) De lado', 'lado esquerdo para o celular')}
       ${setup}`;
     const size = px ? `width="${px}" height="${Math.round((px * H) / W)}"` : 'width="100%"';
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" ${size} font-family="Helvetica, Arial, sans-serif" role="img" aria-label="Posições das quatro fotos: de frente, de costas e de lado, direito e esquerdo">${body}</svg>`;
   }
 
+  // Imagem das figuras para compartilhar: as fotos entram embutidas, porque um SVG usado como imagem não carrega arquivos de fora.
+  async function guideDataUrls() {
+    const out = {};
+    for (const k of GUIDE_IMGS) {
+      const blob = await (await fetch('guia-' + k + '.jpg')).blob();
+      out[k] = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+    }
+    return out;
+  }
+
   async function guidePng() {
-    const url = URL.createObjectURL(new Blob([guideFigures(1920)], { type: 'image/svg+xml' }));
+    const url = URL.createObjectURL(new Blob([guideFigures(1920, await guideDataUrls())], { type: 'image/svg+xml' }));
     try {
       const img = new Image();
       img.src = url;
