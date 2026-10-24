@@ -263,6 +263,33 @@ details.card > summary { cursor: pointer; font-size: 17px; }
   .fs-bottom { padding: 6px 8px; }
   .fs-bottom .fs-btn { min-height: 48px; }
 }
+
+/* ===== Laudo na tela do celular: ajusta à largura (a impressão em A4 não muda) ===== */
+@media screen and (max-width: 700px) {
+  .card.rp { padding: 10px; max-width: 100%; overflow-x: hidden; overflow-wrap: anywhere; font-size: 10.5pt; }
+  .rp img { max-width: 100%; height: auto; }
+  .rp .brandbar img { height: 13mm; }
+  .rp .head { flex-direction: column; gap: 4px; }
+  .rp .head .note { text-align: left !important; }
+  .rp h1 { font-size: 15pt; }
+  .rp h2 { font-size: 12pt; }
+  .rp .view { grid-template-columns: 1fr; }
+  .rp .crops { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rp .cred .cols { grid-template-columns: 1fr; }
+  .rp table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; font-size: 8.5pt; }
+  .rp th, .rp td { padding: 3px 4px; }
+  main { overflow-x: hidden; }
+}
+
+@media screen and (max-width: 700px) {
+  .rp table { overflow-wrap: normal; }
+  .rp table.stack, .rp table.stack tbody { display: block; overflow: visible; }
+  .rp table.stack tr.hdr { display: none; }
+  .rp table.stack tr { display: block; border: 1px solid #bbb; border-radius: 6px; margin: 6px 0; padding: 3px 4px; background: #fff; }
+  .rp table.stack td { display: flex; gap: 8px; border: 0; padding: 2px 4px; overflow-wrap: break-word; }
+  .rp table.stack td::before { content: attr(data-label); flex: none; width: 88px; font-weight: 700; color: #13406b; }
+  .rp table.stack td:empty { display: none; }
+}
 </style>
 </head>
 <body>

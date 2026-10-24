@@ -1175,6 +1175,17 @@
   }
 
   // ---------- Laudo ----------
+  // No celular, tabelas largas do laudo viram cartões (cada linha com os rótulos das colunas); na impressão nada muda.
+  function stackTable(t) {
+    const rows = [...t.rows];
+    if (!rows.length) return;
+    const ths = [...rows[0].cells];
+    if (ths.length < 4 || !ths.every((c) => c.tagName === 'TH')) return;
+    t.classList.add('stack');
+    rows[0].classList.add('hdr');
+    rows.slice(1).forEach((r) => [...r.cells].forEach((c, i) => c.setAttribute('data-label', (ths[i] && ths[i].textContent) || '')));
+  }
+
   async function renderLaudo() {
     const a = ED.a;
     const controls = `${tabsHtml()}<div class="card"><h2>Laudo</h2>
@@ -1202,6 +1213,7 @@
     main.innerHTML = controls + `<div class="card"><div class="row"><button class="primary" id="print">Imprimir / salvar em PDF</button>
       <span class="muted">No iPad: toque em Imprimir, depois em Compartilhar (ou afaste dois dedos na prévia) e escolha "Salvar em Arquivos".</span></div></div>
       <div class="card rp">${html}</div>`;
+    main.querySelectorAll('.card.rp table').forEach(stackTable);
     $('#report').innerHTML = `<div class="rp">${html}</div>`;
     bindControls();
     $('#print').onclick = () => window.print();

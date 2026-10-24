@@ -99,6 +99,10 @@ Do arquivo `Base_Regras_App_Postural_v4_0.json` (proposta em revisão profission
 - **Cabeçalho do app** quebra em linhas no celular, sem espremer o título.
 - **Vista anterior:** o ponto da cabeça sugerido automaticamente fica no lóbulo da orelha (mais para fora e para baixo que o ponto do modelo).
 
+## Laudo na tela do celular (v18, 24/10/2026)
+
+- A visualização do laudo no celular se ajusta à largura da tela (sem rolagem lateral): as figuras e os recortes encolhem (recortes em 3 colunas) e as tabelas largas viram **cartões** (cada linha com o nome das colunas). O PDF/impressão em A4 não muda.
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:
