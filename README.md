@@ -103,6 +103,16 @@ Do arquivo `Base_Regras_App_Postural_v4_0.json` (proposta em revisão profission
 
 - A visualização do laudo no celular se ajusta à largura da tela (sem rolagem lateral): as figuras e os recortes encolhem (recortes em 3 colunas) e as tabelas largas viram **cartões** (cada linha com o nome das colunas). O PDF/impressão em A4 não muda.
 
+## Imagem, planilha, modelos e logos (v19, 31/10/2026)
+
+Vieram da comparação com outros apps de postura (só fontes públicas; nada copiado).
+
+- **Salvar imagem:** na página de cada vista, o botão **Salvar imagem** gera a foto marcada em JPEG, no mesmo desenho do laudo, sem grade. O rosto segue a opção "Ocultar o rosto" do laudo. No iPad/iPhone abre o Compartilhar (WhatsApp, Arquivos); no PC baixa. Se as marcações ainda não foram validadas, o app pergunta antes. O nome do arquivo não leva o nome do aluno.
+- **Planilha CSV:** em Resultados, **Exportar medidas** gera um CSV com todas as avaliações do aluno (medidas do protocolo, ângulos livres, fotos dos testes e fotos avulsas), uma linha por medida, com vírgula decimal e ponto e vírgula entre colunas (abre direto no Excel). Não leva o nome do aluno. Medida incompleta não entra; dado ausente fica vazio.
+- **Meus modelos de ângulos:** na tela de ângulos livres, o botão **Modelo** agora aparece em qualquer foto e tem **Salvar os ângulos desta foto como modelo**. O modelo guarda só nomes, tipos e dicas (nenhum ponto da foto) e pode ser apagado no ×. Vai junto na cópia de segurança.
+- **Logos e rodapé do laudo:** na aba Laudo, em "Logos e texto do rodapé", escolha mostrar ou não os logos do CT e da Corre+, adicione um logo próprio (PNG mantém o fundo transparente) e um texto fixo no fim do laudo. As credenciais continuam sempre no laudo.
+- Versão no laudo: v13. Código das exportações em `app/exporta.js`, com testes em `exporta.test.js`.
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:
@@ -144,7 +154,8 @@ Os nossos valores ficaram a até 2° dos do APECS. A diferença vem da leitura d
 - `angles.js`: motor de ângulos e definição das vistas.
 - `app.js`: telas, marcação na foto e armazenamento.
 - `report.js`: laudo.
-- `angles.test.js movimento.test.js`: testes. Rodar com `node --test angles.test.js movimento.test.js`.
+- `exporta.js`: planilha CSV das medidas e modelos de ângulos livres.
+- `*.test.js`: testes. Rodar com `node --test`.
 - `build.js`: gera `dist/avaliacao-postural.html`, uma página única com tudo embutido, para publicar.
 - `manifest.webmanifest` e `sw.js`: instalação na tela inicial e uso sem internet, quando servido por https.
 

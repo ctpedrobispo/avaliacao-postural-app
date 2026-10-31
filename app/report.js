@@ -37,7 +37,8 @@
       '<div class="cols"><div><b>Formação:</b> ' + esc(PEDRO.formacao) + '<br><b>Qualificações:</b><ul>' + li(PEDRO.quals) + '</ul></div>' +
       '<div><b>Áreas de atuação:</b><ul>' + li(PEDRO.areas) + '</ul></div></div>' +
       (mesmo ? '' : '<p><b>Avaliador desta avaliação:</b> ' + esc(perfil.nome) + (perfil.cref ? ' · ' + esc(perfil.cref) : '') + '</p>') +
-      '<p class="note">CT Pedro Bispo | Corre+ Assessoria para Corredores</p></div>';
+      '<p class="note">CT Pedro Bispo | Corre+ Assessoria para Corredores</p></div>' +
+      (perfil.rodape ? '<p class="note" style="white-space:pre-wrap">' + esc(perfil.rodape) + '</p>' : '');
   }
 
   const NO_ERROR_NOTE = 'Houve diferença numérica entre as avaliações, mas a ausência de informação sobre erro de medida impede afirmar com segurança que se trata de mudança real.';
@@ -47,7 +48,7 @@
     : 'Marcações não validadas pelo avaliador.');
   const consentTxt = (s, h) => (s.consent && s.consent.ok ? 'Consentimento de uso de imagem registrado em ' + h.fmtDate(s.consent.data) + '.' : 'Consentimento de uso de imagem não registrado.');
 
-  const APP_VERSAO = '12';
+  const APP_VERSAO = '13';
   const REGRAS_VERSAO = '4.0 (em revisão profissional)';
   // Origem dos pontos, versão do app e das regras: uma linha só, para o laudo continuar curto.
   function fichaTecnica(a) {
@@ -61,8 +62,10 @@
     return 'aplicativo Avaliação Postural v' + APP_VERSAO + ' · base de regras v' + REGRAS_VERSAO + ' · ' + pontos + '.';
   }
 
+  // Logos escolhidos pelo avaliador (aba Laudo): CT, Corre+ e um logo próprio opcional.
   function header(a, perfil, h, titulo, sub) {
-    return `<div class="brandbar"><img src="logo-ct.png" alt="CT Pedro Bispo"><img src="logo-correplus.webp" alt="Corre+ Assessoria para Corredores"></div>
+    const logos = [perfil.logoCt !== false && '<img src="logo-ct.png" alt="CT Pedro Bispo">', perfil.logoCorre !== false && '<img src="logo-correplus.webp" alt="Corre+ Assessoria para Corredores">', perfil.logoProprio && `<img src="${perfil.logoProprio}" alt="Logo">`].filter(Boolean);
+    return `${logos.length ? `<div class="brandbar">${logos.join('')}</div>` : ''}
       <div class="head"><div><h1>${h.esc(titulo)}</h1><div class="note">${h.esc(sub)}</div></div>
       <div class="note" style="text-align:right">Data: <b>${h.fmtDate(a.data)}</b><br>Avaliador: ${h.esc(a.avaliador || perfil.nome)}<br>${h.esc(perfil.cref || '')}</div></div>`;
   }

@@ -1,5 +1,5 @@
 // App de avaliação postural por fotos — uso no iPad (Safari), dados só no aparelho.
-/* global Angles, Report */
+/* global Angles, Report, Exporta */
 (function () {
   'use strict';
 
@@ -73,6 +73,21 @@
     state.refs = refs ? refs.rows : [];
     state.pin = (await DB.get('settings', 'pin')) || null;
     state.perfil = perfil || { id: 'perfil', nome: 'Pedro de Souza Bispo', cref: 'CREF 017067-G/PE' };
+    const modelos = await DB.get('settings', 'modelosLivres');
+    state.modelos = modelos ? modelos.rows : [];
+  }
+
+  // Entrega um arquivo: no iPad/iPhone abre o Compartilhar (WhatsApp, Arquivos); no PC baixa.
+  async function saveFile(blob, name) {
+    const file = typeof File !== 'undefined' ? new File([blob], name, { type: blob.type }) : null;
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   }
 
   // ---------- Navegação ----------
@@ -330,7 +345,7 @@
           <div class="row" style="margin-top:10px">
             <label class="btn" style="margin:0;color:var(--ink)">${v.photo ? 'Trocar foto' : 'Escolher ou tirar foto'}<input type="file" accept="image/*" id="file" hidden></label>
             <button id="cam">Câmera guiada</button>
-            ${v.photo ? '<button id="recrop">Cortar ou girar</button>' : ''}
+            ${v.photo ? '<button id="recrop">Cortar ou girar</button><button id="jpg">Salvar imagem</button>' : ''}
           </div>
         </div>
         <div class="vp-side">
@@ -365,6 +380,7 @@
         invalidate(); await DB.put('assessments', ED.a); renderTab(key);
       });
     };
+    if ($('#jpg')) $('#jpg').onclick = () => saveViewJpeg(key);
     if (def.defaultFacing) $('#facing').onchange = (e) => { v.facing = e.target.value; invalidate(); saveSoon(); drawPreview(key); };
     $('#mk1').onclick = () => openMarker(key, 1);
     $('#mk2').onclick = () => openMarker(key, 2);
@@ -375,6 +391,19 @@
     $('#openfree').onclick = () => openFreeFor(key);
     renderChecklist();
     if (v.photo) drawPreview(key);
+  }
+
+  // Foto marcada em JPEG, no mesmo desenho do laudo, para mandar ao aluno. O rosto segue a opção "Ocultar o rosto" do laudo.
+  async function saveViewJpeg(key) {
+    const a = ED.a, v = a.views[key];
+    if (!v.photo) return;
+    if (!a.validado && !confirm('As marcações desta avaliação ainda não foram validadas (aba Laudo). Salvar a imagem mesmo assim?')) return;
+    const img = await loadImg(v.photo);
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    drawView(c.getContext('2d'), img, key, v, { s: 1, x: 0, y: 0 }, img.naturalWidth / 650, { grid: false, style: 'apecs', mask: a.mascara !== false });
+    const blob = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.88));
+    await saveFile(blob, `postura-${Angles.VIEWS[key].label.split(' (')[0].toLowerCase().replace(/\s+/g, '-')}-${a.data}.jpg`);
   }
 
   // Foto marcada, só para ver (sem toque).
@@ -1067,6 +1096,7 @@
     main.innerHTML = `${tabsHtml()}
       <div class="card"><h2>Resultados</h2>${ED.onlyView ? `<p class="warn">Análise rápida: só a vista ${esc(Angles.VIEWS[ED.onlyView].label.toLowerCase())}. <button id="allres">Mostrar todas</button></p>` : ''}
       <p class="muted">Valores em graus na convenção descrita em cada medida. Ângulo de foto descreve a configuração observada em apoio estático; não é diagnóstico.</p>
+      <div class="row"><button id="csv">Exportar medidas (planilha CSV)</button><span class="muted">Todas as avaliações deste aluno, para Excel. O nome do aluno não vai no arquivo.</span></div>
       ${groups.map((g) => `<h3>${esc(g.def.label)}</h3>${g.res.length ? `<div class="table-wrap"><table><tr><th>Código</th><th>Medida</th><th>Valor</th><th>Descrição</th><th>Referência</th><th>Conduta</th></tr>
         ${g.res.map((r) => { const f = flagFor(r); return `<tr><td>${r.code}</td><td>${esc(r.label)}</td><td><b>${Angles.fmtVal(r)}</b></td><td>${esc(r.text)}</td><td><span class="tag ${f.cls}">${esc(f.txt)}</span></td>
           <td><select data-cond="${r.code}">${CONDUTA.map((o) => `<option ${ED.a.conduta[r.code] === o ? 'selected' : ''}>${o}</option>`).join('')}</select></td></tr>`; }).join('')}
@@ -1075,6 +1105,11 @@
       </div>`;
     const ar = $('#allres');
     if (ar) ar.onclick = () => { ED.onlyView = null; renderTab('res'); };
+    $('#csv').onclick = async () => {
+      const hist = (await studentHistory(ED.a.studentId)).map((x) => (x.id === ED.a.id ? ED.a : x));
+      const testNome = (id) => (typeof Mov !== 'undefined' && (Mov.TESTS.find((t) => t.id === id) || {}).nome) || id;
+      await saveFile(new Blob([Exporta.csv(Exporta.medidas(hist, { testNome }))], { type: 'text/csv' }), `medidas-postura-${today()}.csv`);
+    };
     main.insertAdjacentHTML('beforeend', extraResultsHtml());
     main.querySelectorAll('[data-cond]').forEach((s) => (s.onchange = () => { ED.a.conduta[s.dataset.cond] = s.value; saveSoon(); }));
   }
@@ -1187,7 +1222,8 @@
   }
 
   async function renderLaudo() {
-    const a = ED.a;
+    const a = ED.a, pf = state.perfil;
+    const savePerfil = async (rerender) => { await DB.put('settings', pf); if (rerender) renderLaudo(); };
     const controls = `${tabsHtml()}<div class="card"><h2>Laudo</h2>
       <div class="grid2"><div><label>Tipo de relatório</label><select id="l-tipo">
         <option value="tecnico" ${a.tipoLaudo === 'tecnico' ? 'selected' : ''}>Registro técnico (completo, para o avaliador)</option>
@@ -1195,12 +1231,24 @@
       <label style="display:flex;gap:8px;align-items:center;color:var(--ink);margin-top:8px"><input type="checkbox" id="l-mask" style="width:auto" ${a.mascara ? 'checked' : ''}> Ocultar o rosto nas fotos do laudo</label>
       <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="l-fmov" style="width:auto" ${a.fotosMov ? 'checked' : ''}> Incluir no laudo as fotos dos testes de movimento e dos ângulos livres (o rosto não é ocultado nelas)</label>
       <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="l-val" style="width:auto" ${a.validado ? 'checked' : ''}> Conferi e validei as marcações de todas as vistas</label>
-      <p class="muted">${a.validado ? 'Validado em ' + new Date(a.validado.em).toLocaleString('pt-BR') + '. Se você mudar um ponto ou a calibração, a validação é desfeita.' : 'Marque a confirmação para gerar o laudo: as marcações são validadas por quem avalia.'}</p></div>`;
+      <p class="muted">${a.validado ? 'Validado em ' + new Date(a.validado.em).toLocaleString('pt-BR') + '. Se você mudar um ponto ou a calibração, a validação é desfeita.' : 'Marque a confirmação para gerar o laudo: as marcações são validadas por quem avalia.'}</p>
+      <details id="l-cfg" style="margin-top:8px" ${ED.cfgOpen ? 'open' : ''}><summary>Logos e texto do rodapé (vale para todos os laudos)</summary>
+        <label style="display:flex;gap:8px;align-items:center;color:var(--ink);margin-top:8px"><input type="checkbox" id="l-lct" style="width:auto" ${pf.logoCt !== false ? 'checked' : ''}> Logo do CT Pedro Bispo</label>
+        <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="l-lcm" style="width:auto" ${pf.logoCorre !== false ? 'checked' : ''}> Logo da Corre+</label>
+        <div class="row" style="margin-top:6px">${pf.logoProprio ? `<img src="${pf.logoProprio}" alt="Logo próprio" style="height:40px">` : ''}<label class="btn" style="margin:0;color:var(--ink)">${pf.logoProprio ? 'Trocar logo próprio' : 'Adicionar logo próprio'}<input type="file" accept="image/*" id="l-lpr" hidden></label>${pf.logoProprio ? '<button class="danger" id="l-lprx">Remover logo próprio</button>' : ''}</div>
+        <label>Texto no fim do laudo (contato, endereço, observação fixa)</label><textarea id="l-rod">${esc(pf.rodape || '')}</textarea>
+        <p class="muted">As credenciais profissionais continuam sempre no laudo.</p></details></div>`;
     const bindControls = () => {
       $('#l-tipo').onchange = (e) => { a.tipoLaudo = e.target.value; saveSoon(); renderLaudo(); };
       $('#l-mask').onchange = (e) => { a.mascara = e.target.checked; saveSoon(); renderLaudo(); };
       $('#l-fmov').onchange = (e) => { a.fotosMov = e.target.checked; saveSoon(); renderLaudo(); };
       $('#l-val').onchange = (e) => { a.validado = e.target.checked ? { ok: true, em: new Date().toISOString() } : null; saveSoon(); renderLaudo(); };
+      $('#l-cfg').ontoggle = (e) => { ED.cfgOpen = e.target.open; };
+      $('#l-lct').onchange =(e) => { pf.logoCt = e.target.checked; savePerfil(true); };
+      $('#l-lcm').onchange = (e) => { pf.logoCorre = e.target.checked; savePerfil(true); };
+      $('#l-lpr').onchange = async (e) => { if (!e.target.files[0]) return; pf.logoProprio = await shrinkToDataUrl(e.target.files[0], 600, 'image/png'); savePerfil(true); };
+      if ($('#l-lprx')) $('#l-lprx').onclick = () => { pf.logoProprio = null; savePerfil(true); };
+      $('#l-rod').onchange = (e) => { pf.rodape = e.target.value; savePerfil(true); };
       bindTabs();
     };
     if (!a.validado) { main.innerHTML = controls; bindControls(); return; }
@@ -1788,7 +1836,7 @@
         rightLow: true,
         leftHtml: fsBtn('grid', ICON.grid, 'Grade') + fsBtn('contrast', ICON.contrast, 'Contraste'),
         rightHtml: fsBtn('move', ICON.move, 'Mover') + fsBtn('list', ICON.list, 'Ângulos') + fsBtn('fit', ICON.fit, 'Ajustar'),
-        bottomHtml: fsBtn('undo', ICON.back, 'Desfazer') + fsBtn('redo', ICON.redo, 'Refazer ponto') + fsBtn('nudge', ICON.nudge, 'Ajuste fino') + (cfg.templates && cfg.templates.length ? fsBtn('model', ICON.list, 'Modelo') : ''),
+        bottomHtml: fsBtn('undo', ICON.back, 'Desfazer') + fsBtn('redo', ICON.redo, 'Refazer ponto') + fsBtn('nudge', ICON.nudge, 'Ajuste fino') + fsBtn('model', ICON.list, 'Modelo'),
         drawOverlay: (c, tf, loupe) => { c.save(); c.translate(tf.x, tf.y); c.scale(tf.s, tf.s); drawFreeAngles(c, cfg.free, 1 / tf.s, { sel: W.sel, labels: !loupe, numbers: !loupe }); c.restore(); },
         pos: (t) => cfg.free[t.ai] && cfg.free[t.ai].pts[t.pi],
         hit: (q, r) => {
@@ -1839,12 +1887,31 @@
             }
             S.close();
           } else if (act === 'model') {
-            const m = S.modal(`<h2>Modelo de medidas</h2><p class="muted">Sugestão para conferir com o seu manual. Os ângulos entram na lista para você marcar na ordem indicada no topo da tela; pode renomear ou apagar.</p>
-              <div class="col">${cfg.templates.map((t, i) => `<button data-m="${i}"><b>${esc(t.nome)}</b><small>${esc(t.angulos.map((x) => x.label).join(' · '))}</small></button>`).join('')}<button data-m="x">Cancelar</button></div>`);
-            m.querySelectorAll('[data-m]').forEach((b) => (b.onclick = () => {
+            // Modelos do teste (sugestões do app) e modelos salvos pelo avaliador (guardam só nomes e tipos, nunca pontos).
+            const tpls = [...(cfg.templates || []), ...state.modelos.map((t) => ({ ...t, meu: true }))];
+            const m = S.modal(`<h2>Modelo de medidas</h2><p class="muted">Os ângulos do modelo entram na lista para você marcar na ordem indicada no topo da tela; pode renomear ou apagar. Modelos do app são sugestões para conferir com o seu manual.</p>
+              <div class="col">${tpls.map((t, i) => `<div class="row" style="flex-wrap:nowrap"><button data-m="${i}" style="flex:1"><b>${esc(t.nome)}</b>${t.meu ? ' <small>(meu modelo)</small>' : ''}<small>${esc(t.angulos.map((x) => x.label).join(' · '))}</small></button>${t.meu ? `<button class="danger" data-mdel="${i - (cfg.templates || []).length}" aria-label="Apagar modelo">×</button>` : ''}</div>`).join('') || '<p class="muted">Nenhum modelo ainda.</p>'}
+              ${cfg.free.length ? '<button data-m="save">Salvar os ângulos desta foto como modelo</button>' : ''}<button data-m="x">Cancelar</button></div>`);
+            m.querySelectorAll('[data-mdel]').forEach((b) => (b.onclick = async () => {
+              const t = state.modelos[+b.dataset.mdel];
+              if (!t || !confirm(`Apagar o modelo "${t.nome}"?`)) return;
+              state.modelos.splice(+b.dataset.mdel, 1);
+              await DB.put('settings', { id: 'modelosLivres', rows: state.modelos });
+              S.closeModal(); S.toast('Modelo apagado.');
+            }));
+            m.querySelectorAll('[data-m]').forEach((b) => (b.onclick = async () => {
               S.closeModal();
               if (b.dataset.m === 'x') return;
-              const t = cfg.templates[+b.dataset.m];
+              if (b.dataset.m === 'save') {
+                const nome = prompt('Nome do modelo (ex.: Corrida — vista lateral):', '');
+                if (nome == null) return;
+                const dicas = {};
+                Object.keys(FREE_TIPOS).forEach((k) => (dicas[k] = FREE_TIPOS[k].dicas));
+                state.modelos.push(Exporta.modelo(nome, cfg.free, dicas));
+                await DB.put('settings', { id: 'modelosLivres', rows: state.modelos });
+                return S.toast('Modelo salvo. Ele aparece em "Modelo" em qualquer foto.', 3200);
+              }
+              const t = tpls[+b.dataset.m];
               let first = -1;
               t.angulos.forEach((sp) => {
                 if (cfg.free.some((f) => f.label === sp.label)) return;
@@ -1993,8 +2060,8 @@
     drawFreeAngles(g, free.map(normFree), img.naturalWidth / 650, { labels: true });
     return c.toDataURL('image/jpeg', 0.85);
   }
-  // Foto reduzida (lado maior 1800 px) como dataURL.
-  async function shrinkToDataUrl(file, max) {
+  // Foto reduzida (lado maior 1800 px) como dataURL. type 'image/png' mantém o fundo transparente (logos).
+  async function shrinkToDataUrl(file, max, type) {
     const url = URL.createObjectURL(file);
     const img = await loadImg(url);
     const k = Math.min(1, (max || 1800) / Math.max(img.naturalWidth, img.naturalHeight));
@@ -2002,7 +2069,7 @@
     c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
     c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
     URL.revokeObjectURL(url);
-    return c.toDataURL('image/jpeg', 0.88);
+    return type === 'image/png' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.88);
   }
 
 
@@ -2132,7 +2199,7 @@
     });
     $('#save').onclick = async () => {
       state.refs = collect();
-      state.perfil = { id: 'perfil', nome: $('#pnome').value, cref: $('#pcref').value };
+      state.perfil = { ...state.perfil, id: 'perfil', nome: $('#pnome').value, cref: $('#pcref').value };
       await DB.put('settings', { id: 'refs', rows: state.refs });
       await DB.put('settings', state.perfil);
       alert('Referências salvas.');
