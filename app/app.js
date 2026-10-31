@@ -1,5 +1,5 @@
 // App de avaliação postural por fotos — uso no iPad (Safari), dados só no aparelho.
-/* global Angles, Report, Exporta, Corrida */
+/* global Angles, Report, Exporta, Corrida, Medidas */
 (function () {
   'use strict';
 
@@ -167,7 +167,7 @@
     setHeader(s.nome, showHome);
     main.innerHTML = `
       <div class="card">
-        <div class="row" style="justify-content:space-between"><h2>${esc(s.nome)}</h2><div class="row"><button id="guia">Guia de fotos</button><button id="edit">Editar dados</button></div></div>
+        <div class="row" style="justify-content:space-between"><h2>${esc(s.nome)}</h2><div class="row"><button id="med">Medidas corporais${(s.medidas || []).length ? " (" + s.medidas.length + ")" : ""}</button><button id="guia">Guia de fotos</button><button id="edit">Editar dados</button></div></div>
         <p class="muted">${s.nascimento ? 'Nascimento: ' + fmtDate(s.nascimento) + ' · ' : ''}${s.altura ? 'Altura: ' + esc(s.altura) + ' cm · ' : ''}${s.peso ? 'Peso: ' + esc(s.peso) + ' kg' : ''}</p>
         <p class="${s.consent.ok ? 'muted' : 'warn'}">${s.consent.ok ? 'Consentimento de imagem registrado em ' + fmtDate(s.consent.data) : 'Sem consentimento de imagem: registre antes de fotografar.'}</p>
       </div>
@@ -177,12 +177,133 @@
       </div>`;
     $('#edit').onclick = () => showStudentForm(id);
     $('#guia').onclick = () => showStudentGuide(() => showStudent(id));
+    $('#med').onclick = () => showMedidas(id);
     $('#nova').onclick = async () => {
       const a = newAssessment(id);
       await DB.put('assessments', a);
       openEditor(a.id, 'home');
     };
     main.querySelectorAll('.list a').forEach((el) => (el.onclick = (e) => { e.preventDefault(); openEditor(el.dataset.id, 'home'); }));
+  }
+
+  // ---------- Medidas corporais (perimetria) e evolução ----------
+  // Ficam no cadastro do aluno (s.medidas), fora das avaliações posturais: entram na cópia de segurança junto com o aluno.
+  const COR = { D: '#1f78d1', E: '#e67e22', U: '#1f78d1' };
+  function drawChartMulti(c, linhas, title, unit) {
+    const W = c.width, H = c.height, g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+    const m = { l: 52, r: 24, t: 46, b: 40 };
+    const todos = linhas.flatMap((l) => l.pts);
+    if (!todos.length) return;
+    const tm = (d) => new Date(d + 'T12:00:00').getTime();
+    let t0 = Math.min(...todos.map((p) => tm(p.data))), t1 = Math.max(...todos.map((p) => tm(p.data)));
+    if (t1 === t0) { t0 -= 864e5 * 15; t1 += 864e5 * 15; }
+    let lo = Math.min(...todos.map((p) => p.value)), hi = Math.max(...todos.map((p) => p.value));
+    if (hi - lo < 1) { const mid = (hi + lo) / 2; lo = mid - 0.5; hi = mid + 0.5; }
+    const pad = (hi - lo) * 0.2; lo -= pad; hi += pad;
+    const X = (d) => m.l + ((tm(d) - t0) / (t1 - t0)) * (W - m.l - m.r);
+    const Y = (v) => H - m.b - ((v - lo) / (hi - lo)) * (H - m.t - m.b);
+    g.font = '600 13px -apple-system, sans-serif'; g.fillStyle = '#111'; g.fillText(title, 10, 20);
+    g.font = '12px -apple-system, sans-serif';
+    linhas.forEach((l, i) => { const lx = 10 + i * 90; g.fillStyle = l.cor; g.fillRect(lx, 28, 12, 4); g.fillStyle = '#334'; g.fillText(l.nome, lx + 17, 34); });
+    g.strokeStyle = '#ccd3da'; g.lineWidth = 1; g.fillStyle = '#556';
+    for (let i = 0; i <= 4; i++) { const v = lo + ((hi - lo) * i) / 4, y = Y(v); g.beginPath(); g.moveTo(m.l, y); g.lineTo(W - m.r, y); g.stroke(); g.fillText(Angles.fmt(v), 6, y + 4); }
+    const datas = [...new Set(todos.map((p) => p.data))].sort();
+    const passo = Math.ceil(datas.length / 6);
+    datas.forEach((d, i) => { if (i % passo) return; const dl = fmtDate(d).slice(0, 5) + '/' + d.slice(2, 4); g.fillStyle = '#556'; g.fillText(dl, Math.min(W - 40, Math.max(2, X(d) - 18)), H - 14); });
+    linhas.forEach((l) => {
+      g.strokeStyle = l.cor; g.lineWidth = 2.5; g.beginPath();
+      l.pts.forEach((p, i) => (i ? g.lineTo(X(p.data), Y(p.value)) : g.moveTo(X(p.data), Y(p.value))));
+      g.stroke();
+      l.pts.forEach((p) => {
+        g.beginPath(); g.arc(X(p.data), Y(p.value), 4.5, 0, Math.PI * 2); g.fillStyle = '#fff'; g.fill(); g.strokeStyle = l.cor; g.stroke();
+        const vl = Angles.fmt(p.value) + (unit ? ' ' + unit : '');
+        g.fillStyle = '#111';
+        g.fillText(vl, Math.min(W - m.r - g.measureText(vl).width + 14, Math.max(2, X(p.data) - g.measureText(vl).width / 2)), Y(p.value) + (l.nome === 'Esquerdo' ? 18 : -9));
+      });
+    });
+  }
+  // Gráficos prontos: um por grupo (par = duas linhas, direito e esquerdo) mais a relação cintura/quadril.
+  function graficosMedidas(list) {
+    const out = [];
+    Medidas.GRUPOS.forEach((g) => {
+      const linhas = (g.par ? ['D', 'E'] : ['U']).map((lado) => ({ nome: lado === 'D' ? 'Direito' : lado === 'E' ? 'Esquerdo' : g.nome, cor: COR[lado], pts: Medidas.serie(list, Medidas.key(g, lado)) })).filter((l) => l.pts.length);
+      if (linhas.length) out.push({ titulo: g.nome + ' (cm)', linhas, unit: 'cm' });
+    });
+    const r = Medidas.serieRcq(list);
+    if (r.length) out.push({ titulo: 'Relação cintura/quadril', linhas: [{ nome: 'Razão', cor: COR.U, pts: r }], unit: '' });
+    return out;
+  }
+  function chartMultiImage(gr) {
+    const c = document.createElement('canvas');
+    c.width = 560; c.height = 250;
+    drawChartMulti(c, gr.linhas, gr.titulo, gr.unit);
+    return c.toDataURL('image/png');
+  }
+
+  async function showMedidas(id, editId) {
+    ED.active = false;
+    const s = await DB.get('students', id);
+    s.medidas = s.medidas || [];
+    setHeader('Medidas corporais · ' + s.nome, () => showStudent(id));
+    const edit = editId ? s.medidas.find((r) => r.id === editId) : null;
+    const cur = edit ? edit.v : {};
+    const val = (k) => (cur[k] != null ? String(cur[k]).replace('.', ',') : '');
+    const campo = (g) => g.par
+      ? `<div><label>${esc(g.nome)} (cm)</label><div class="row" style="flex-wrap:nowrap"><input inputmode="decimal" placeholder="Direito" data-mk="${Medidas.key(g, 'D')}" value="${esc(val(Medidas.key(g, 'D')))}" style="flex:1"><input inputmode="decimal" placeholder="Esquerdo" data-mk="${Medidas.key(g, 'E')}" value="${esc(val(Medidas.key(g, 'E')))}" style="flex:1"></div></div>`
+      : `<div><label>${esc(g.nome)} (cm)</label><input inputmode="decimal" data-mk="${g.id}" value="${esc(val(g.id))}"></div>`;
+    const ev = Medidas.evolucao(s.medidas), as = Medidas.assimetria(s.medidas), rcq = Medidas.serieRcq(s.medidas);
+    const sg = (v) => (v == null ? '' : (v > 0 ? '+' : '') + Angles.fmt(v));
+    const graf = graficosMedidas(s.medidas);
+    const lista = Medidas.ordena(s.medidas).reverse();
+    main.innerHTML = `
+      <div class="card"><h2>${edit ? 'Editar medição de ' + fmtDate(edit.data) : 'Nova medição'}</h2>
+        <p class="muted">Circunferências em cm. Preencha só o que mediu: o que ficar vazio não entra (nunca vira zero). Meça sempre no mesmo ponto, com a mesma fita, na mesma posição e, se possível, no mesmo horário; fita inelástica, sem apertar. As medidas descrevem; não são diagnóstico nem avaliação de risco.</p>
+        <div class="grid2"><div><label>Data</label><input id="m-data" type="date" value="${esc(edit ? edit.data : today())}"></div>
+          <div><label>Condições e pontos de medida (fita, horário, jejum, onde mediu)</label><input id="m-obs" value="${esc(edit ? edit.obs || '' : '')}"></div></div>
+        <div class="grid2" style="margin-top:6px">${Medidas.GRUPOS.map(campo).join('')}</div>
+        <p class="warn" id="m-av" hidden></p>
+        <div class="row" style="margin-top:12px"><button class="primary" id="m-save">${edit ? 'Salvar alterações' : 'Salvar medição'}</button>${edit ? '<button id="m-cancel">Cancelar edição</button>' : ''}</div></div>
+      ${s.medidas.length ? `
+      <div class="card"><div class="row" style="justify-content:space-between"><h2>Evolução</h2><div class="row"><button id="m-csv">Exportar CSV</button><button id="m-pdf">Imprimir / salvar em PDF</button></div></div>
+        <div class="table-wrap"><table><tr><th>Medida</th><th>Atual (cm)</th><th>Data</th><th>Desde a anterior</th><th>Desde a primeira</th><th>Medições</th></tr>
+        ${ev.map((r) => `<tr><td>${esc(r.nome)}</td><td><b>${Angles.fmt(r.atual)}</b></td><td>${fmtDate(r.dataAtual)}</td><td>${sg(r.desdeAnterior)}</td><td>${sg(r.desdePrimeiro)}</td><td>${r.n}</td></tr>`).join('')}</table></div>
+        ${as.length ? `<h3>Direito e esquerdo</h3><div class="table-wrap"><table><tr><th>Medida</th><th>Data</th><th>Direito</th><th>Esquerdo</th><th>Diferença (D − E)</th></tr>${as.map((r) => `<tr><td>${esc(r.nome)}</td><td>${fmtDate(r.data)}</td><td>${Angles.fmt(r.D)}</td><td>${Angles.fmt(r.E)}</td><td><b>${sg(r.dif)}</b></td></tr>`).join('')}</table></div>` : ''}
+        ${rcq.length ? `<p>Relação cintura/quadril: <b>${String(rcq[rcq.length - 1].value).replace('.', ',')}</b> (${fmtDate(rcq[rcq.length - 1].data)}). Valor contínuo, sem classificação: não há ponto de corte universal.</p>` : ''}
+        <p class="muted">Variações pequenas podem ser só erro de medida (fita, ponto, horário, hidratação). As circunferências somam massa muscular, gordura e tamanho ósseo: uma variação isolada não diz qual deles mudou.</p></div>
+      <div class="card"><h2>Gráficos</h2><div id="m-graf" class="crops" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))"></div></div>
+      <div class="card"><h2>Medições registradas</h2><div class="list">${lista.map((r) => `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:8px 0"><span><b>${fmtDate(r.data)}</b> <span class="muted">· ${Object.keys(r.v || {}).length} medida(s)${r.obs ? ' · ' + esc(r.obs) : ''}</span></span><span class="row"><button data-med="${r.id}">Editar</button><button class="danger" data-mdel="${r.id}">Apagar</button></span></div>`).join('')}</div></div>` : '<div class="card"><p class="muted">Nenhuma medição ainda. Salve a primeira acima para ver a evolução e os gráficos.</p></div>'}`;
+    const gx = $('#m-graf');
+    if (gx) graf.forEach((gr) => { const c = document.createElement('canvas'); c.width = 560; c.height = 250; c.style.width = '100%'; c.style.height = 'auto'; c.style.borderRadius = '8px'; c.style.border = '1px solid var(--line)'; drawChartMulti(c, gr.linhas, gr.titulo, gr.unit); gx.appendChild(c); });
+    const lerForm = () => { const v = {}; main.querySelectorAll('[data-mk]').forEach((el) => (v[el.dataset.mk] = el.value)); return v; };
+    const avisa = () => { const a = Medidas.aviso(lerForm()); $('#m-av').hidden = !a.length; $('#m-av').innerHTML = a.map(esc).join('<br>'); };
+    main.querySelectorAll('[data-mk]').forEach((el) => (el.oninput = avisa));
+    $('#m-save').onclick = async () => {
+      const v = Medidas.limpa(lerForm()), data = $('#m-data').value;
+      if (!data) return alert('Informe a data da medição.');
+      if (!Object.keys(v).length) return alert('Preencha ao menos uma medida.');
+      const av = Medidas.aviso(lerForm());
+      if (av.length && !confirm(av.join('\n') + '\n\nSalvar mesmo assim?')) return;
+      if (edit) Object.assign(edit, { data, v, obs: $('#m-obs').value });
+      else s.medidas.push({ id: uid(), data, v, obs: $('#m-obs').value, criado: new Date().toISOString() });
+      await DB.put('students', s);
+      showMedidas(id);
+    };
+    if ($('#m-cancel')) $('#m-cancel').onclick = () => showMedidas(id);
+    main.querySelectorAll('[data-med]').forEach((b) => (b.onclick = () => { showMedidas(id, b.dataset.med); window.scrollTo(0, 0); }));
+    main.querySelectorAll('[data-mdel]').forEach((b) => (b.onclick = async () => {
+      const r = s.medidas.find((x) => x.id === b.dataset.mdel);
+      if (!r || !confirm(`Apagar a medição de ${fmtDate(r.data)}?`)) return;
+      s.medidas = s.medidas.filter((x) => x.id !== r.id);
+      await DB.put('students', s);
+      showMedidas(id);
+    }));
+    if ($('#m-csv')) $('#m-csv').onclick = () => saveFile(new Blob([Exporta.csvCorporais(s.medidas)], { type: 'text/csv' }), `medidas-corporais-${today()}.csv`);
+    if ($('#m-pdf')) $('#m-pdf').onclick = async () => {
+      const html = await Report.buildMedidas({ s, perfil: state.perfil, ev, as, rcq, graficos: graf.map((gr) => ({ titulo: gr.titulo, src: chartMultiImage(gr) })), helpers: { esc, fmtDate } });
+      $('#report').innerHTML = `<div class="rp">${html}</div>`;
+      window.print();
+    };
   }
 
   function newAssessment(studentId) {

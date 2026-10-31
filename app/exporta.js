@@ -1,8 +1,8 @@
 // Exportações: medidas em CSV (planilha, sem nome do aluno) e modelos de ângulos livres criados pelo avaliador.
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./angles.js'), require('./corrida.js'));
-  else root.Exporta = factory(root.Angles, root.Corrida);
-})(typeof self !== 'undefined' ? self : this, function (Angles, Corrida) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./angles.js'), require('./corrida.js'), require('./medidas.js'));
+  else root.Exporta = factory(root.Angles, root.Corrida, root.Medidas);
+})(typeof self !== 'undefined' ? self : this, function (Angles, Corrida, Medidas) {
   'use strict';
 
   const VIEW_KEYS = ['ant', 'post', 'latD', 'latE'];
@@ -60,5 +60,9 @@
     };
   }
 
-  return { csv, medidas, modelo, CABECALHO };
+  // Medidas corporais do aluno (circunferências em cm), sem o nome do aluno.
+  const CABECALHO_CORPORAIS = ['data', 'medida', 'valor', 'unidade', 'observacao'];
+  const csvCorporais = (list) => csv([CABECALHO_CORPORAIS].concat(Medidas.linhasCsv(list)));
+
+  return { csv, medidas, modelo, csvCorporais, CABECALHO, CABECALHO_CORPORAIS };
 });

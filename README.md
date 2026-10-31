@@ -127,6 +127,16 @@ Para substituir o uso do Yogger na avaliação da corrida, seguindo o Manual de 
 - **CSV:** cadência, contato e voo por lado e ângulos dos quadros, com a velocidade.
 - Código em `app/corrida.js`, testes em `corrida.test.js`. Não testado em iPad/iPhone de verdade: conferir a precisão do avanço quadro a quadro e a detecção dos quadros/s com vídeo em câmera lenta do iPhone.
 
+## Medidas corporais e evolução (v21, 31/10/2026)
+
+- Na página do aluno, botão **Medidas corporais**. Cada medição tem data, observação (fita, horário, jejum, ponto) e circunferências em cm: bíceps relaxado e contraído, antebraço, coxa e panturrilha (direito e esquerdo), pescoço, tórax, cintura, abdômen e quadril. Só o que foi medido entra: vazio nunca vira zero. Valor fora do plausível gera aviso, não bloqueio.
+- **Evolução:** tabela com o valor atual, a variação desde a medição anterior e desde a primeira, diferença direito − esquerdo e relação cintura/quadril (valor contínuo, sem classificação). Um **gráfico por medida** (direito em azul e esquerdo em laranja, eixo de tempo proporcional às datas) e um da relação cintura/quadril.
+- **Editar e apagar** medições; **CSV** (sem o nome do aluno) e **relatório em PDF** (com o nome do aluno, credenciais e os gráficos).
+- Ficam no cadastro do aluno (`medidas`), por isso entram na cópia de segurança e são apagadas com o aluno. Não dependem de avaliação postural.
+- Texto do app e do relatório: circunferências somam músculo, gordura e osso; variações pequenas podem ser erro de medida; sem diagnóstico nem classificação.
+- Referências consultadas (fontes públicas): padrão ISAK de circunferências, lista de medidas do Hevy (bíceps, antebraço, coxa e panturrilha em lados separados). O MFIT e o Next Fit guardam as medidas dentro da ficha de cada aluno, e as fichas não foram abertas.
+- Código em `app/medidas.js`, testes em `medidas.test.js`.
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:
@@ -170,6 +180,7 @@ Os nossos valores ficaram a até 2° dos do APECS. A diferença vem da leitura d
 - `report.js`: laudo.
 - `exporta.js`: planilha CSV das medidas e modelos de ângulos livres.
 - `corrida.js`: mecânica da corrida (tempos, cadência, avisos, qualidade, modelos por vista).
+- `medidas.js`: medidas corporais (circunferências, evolução, assimetria D−E, relação cintura/quadril).
 - `*.test.js`: testes. Rodar com `node --test`.
 - `build.js`: gera `dist/avaliacao-postural.html`, uma página única com tudo embutido, para publicar.
 - `manifest.webmanifest` e `sw.js`: instalação na tela inicial e uso sem internet, quando servido por https.

@@ -341,5 +341,24 @@
     return c.toDataURL('image/jpeg', 0.85);
   }
 
-  root.Report = { build };
+  // Relatório de medidas corporais do aluno (circunferências em cm e evolução). Descreve; sem diagnóstico nem classificação.
+  async function buildMedidas({ s, perfil, ev, as, rcq, graficos, helpers: h }) {
+    const { esc, fmtDate } = h;
+    const sg = (v) => (v == null ? '' : (v > 0 ? '+' : '') + String(v).replace('.', ','));
+    const n = (v) => String(v).replace('.', ',');
+    const hoje = new Date().toISOString().slice(0, 10);
+    const head = header({ data: hoje, avaliador: perfil.nome }, perfil, h, 'Medidas corporais e evolução', 'Circunferências em cm · ' + s.nome);
+    return `<div class="page">${head}
+      <h2>Evolução das medidas</h2>
+      <table><tr><th>Medida</th><th>Atual (cm)</th><th>Data</th><th>Desde a anterior</th><th>Desde a primeira</th><th>Medições</th></tr>
+      ${ev.map((r) => `<tr><td>${esc(r.nome)}</td><td><b>${n(r.atual)}</b></td><td>${fmtDate(r.dataAtual)}</td><td>${sg(r.desdeAnterior)}</td><td>${sg(r.desdePrimeiro)}</td><td>${r.n}</td></tr>`).join('')}</table>
+      ${as.length ? `<h2>Direito e esquerdo</h2><table><tr><th>Medida</th><th>Data</th><th>Direito</th><th>Esquerdo</th><th>Diferença (D − E)</th></tr>${as.map((r) => `<tr><td>${esc(r.nome)}</td><td>${fmtDate(r.data)}</td><td>${n(r.D)}</td><td>${n(r.E)}</td><td><b>${sg(r.dif)}</b></td></tr>`).join('')}</table>` : ''}
+      ${rcq.length ? `<p>Relação cintura/quadril: <b>${n(rcq[rcq.length - 1].value)}</b> (${fmtDate(rcq[rcq.length - 1].data)}). Valor contínuo, sem classificação.</p>` : ''}
+      <h2>Gráficos</h2><div class="crops" style="grid-template-columns:repeat(2,1fr)">${graficos.map((g) => `<div class="crop"><img src="${g.src}" alt="${esc(g.titulo)}"></div>`).join('')}</div>
+      <p class="note">Circunferências somam massa muscular, gordura e tamanho ósseo: uma variação isolada não diz qual deles mudou. Variações pequenas podem ser erro de medida (fita, ponto, horário). Os valores descrevem as medidas feitas e não são diagnóstico nem avaliação de risco.</p>
+      ${credenciais(perfil, esc)}
+    </div>`;
+  }
+
+  root.Report = { build, buildMedidas };
 })(typeof self !== 'undefined' ? self : this);

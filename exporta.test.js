@@ -68,3 +68,13 @@ test('medidas: corrida com cadência, tempos por lado e ângulos dos quadros', (
   assert.ok(rows.some((r) => r[1] === 'Lateral direita · Contato inicial D' && r[3] === 'Tíbia × vertical' && r[4] === '0'));
   assert.ok(!rows.some((r) => r[1].startsWith('Posterior')));
 });
+
+test('csvCorporais: cabeçalho sem nome do aluno e linhas por medida', () => {
+  const lista = [{ id: 'a', data: '2026-10-01', v: { braco_D: 35, braco_E: 34.5, cintura: 80, quadril: 100 }, obs: 'fita inelástica' }];
+  const s = E.csvCorporais(lista);
+  const linhas = s.replace('﻿', '').trim().split('\r\n');
+  assert.equal(linhas[0], 'data;medida;valor;unidade;observacao');
+  assert.ok(linhas.includes('2026-10-01;Bíceps (braço relaxado) (esquerdo);34,5;cm;fita inelástica'));
+  assert.ok(linhas.some((l) => l.startsWith('2026-10-01;Relação cintura/quadril;0,8;razão')));
+  assert.ok(!/aluno|nome/i.test(linhas[0]));
+});
