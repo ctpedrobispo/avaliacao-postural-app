@@ -52,3 +52,19 @@ test('modelo: guarda nome, tipo e dicas, sem pontos', () => {
   assert.ok(!JSON.stringify(m).includes('"x":1'));
   assert.equal(E.modelo('', []).nome, 'Meu modelo');
 });
+
+test('medidas: corrida com cadência, tempos por lado e ângulos dos quadros', () => {
+  const passos = [];
+  let t = 1;
+  for (let i = 0; i < 14; i++) { passos.push({ lado: i % 2 ? 'E' : 'D', ic: t, to: t + 0.25 }); t += 0.35; }
+  const a = aval('2026-10-31', { corrida: { vistas: {
+    latD: { usada: true, velocidade: '10 km/h', fpsGrav: '120', fpsArq: '120', passos, quadros: [{ nome: 'Contato inicial D', free: [{ tipo: 'v', label: 'Tíbia × vertical', pts: [P(0, 0), P(0, 100)] }] }] },
+    post: { usada: false, passos: [] },
+  } } });
+  const rows = E.medidas([a]).filter((r) => r[7] === 'corrida');
+  assert.deepEqual(rows[0].slice(1, 6), ['Lateral direita', '', 'Cadência', '171', 'passos/min']);
+  assert.ok(rows.some((r) => r[3] === 'Tempo de contato direito' && r[4] === '250' && r[5] === 'ms'));
+  assert.ok(rows.some((r) => r[3] === 'Tempo de voo esquerdo'));
+  assert.ok(rows.some((r) => r[1] === 'Lateral direita · Contato inicial D' && r[3] === 'Tíbia × vertical' && r[4] === '0'));
+  assert.ok(!rows.some((r) => r[1].startsWith('Posterior')));
+});

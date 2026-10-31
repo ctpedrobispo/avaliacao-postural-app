@@ -1,8 +1,8 @@
 // Exportações: medidas em CSV (planilha, sem nome do aluno) e modelos de ângulos livres criados pelo avaliador.
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./angles.js'));
-  else root.Exporta = factory(root.Angles);
-})(typeof self !== 'undefined' ? self : this, function (Angles) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./angles.js'), require('./corrida.js'));
+  else root.Exporta = factory(root.Angles, root.Corrida);
+})(typeof self !== 'undefined' ? self : this, function (Angles, Corrida) {
   'use strict';
 
   const VIEW_KEYS = ['ant', 'post', 'latD', 'latE'];
@@ -30,6 +30,21 @@
       });
       Object.entries((a.mov && a.mov.fotos) || {}).forEach(([tid, L]) => (L || []).forEach((p) => (p.free || []).forEach((f) => livre(a.data, p.nome, f, 'teste de movimento: ' + testNome(tid)))));
       (a.livres || []).forEach((p) => (p.free || []).forEach((f) => livre(a.data, p.nome, f, 'foto avulsa')));
+      if (Corrida && a.corrida) Corrida.VISTAS.forEach((x) => {
+        const v = a.corrida.vistas && a.corrida.vistas[x.id];
+        if (!v || !v.usada) return;
+        const desc = 'velocidade ' + (v.velocidade || 'não registrada');
+        const t = x.tempos && (v.passos || []).length ? Corrida.tempos(v.passos, Corrida.fator(v)) : null;
+        if (t) {
+          if (t.cadencia != null) rows.push([a.data, x.nome, '', 'Cadência', num(t.cadencia), 'passos/min', desc, 'corrida']);
+          ['D', 'E'].forEach((s) => {
+            const L = t.lados[s], lado = s === 'D' ? 'direito' : 'esquerdo';
+            if (L.contato.media != null) rows.push([a.data, x.nome, '', 'Tempo de contato ' + lado, num(L.contato.media), 'ms', desc + ' · ' + L.n + ' passadas', 'corrida']);
+            if (L.voo.media != null) rows.push([a.data, x.nome, '', 'Tempo de voo ' + lado, num(L.voo.media), 'ms', desc + ' · ' + L.n + ' passadas', 'corrida']);
+          });
+        }
+        (v.quadros || []).forEach((q) => (q.free || []).forEach((f) => livre(a.data, x.nome + ' · ' + q.nome, f, 'corrida')));
+      });
     });
     return rows;
   }

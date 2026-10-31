@@ -126,6 +126,15 @@ th { color: var(--muted); font-weight: 600; }
 .fs-btn.primary { background: #1f78d1; color: #fff; }
 .fs-bottom { background: #111; display: flex; gap: 12px; justify-content: center; align-items: center; padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom)); flex: none; }
 .fs-bottom .fs-btn { min-width: 84px; min-height: 64px; }
+/* Player da corrida: vídeo quadro a quadro */
+.rv-stage { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
+.rv-video { max-width: 100%; max-height: 100%; }
+.rv-bar { display: flex; gap: 10px; align-items: center; padding: 6px 12px; color: #fff; background: #111; font-size: 13px; }
+.rv-seek { flex: 1; padding: 0; }
+.rv-ctrl { display: flex; flex-direction: column; gap: 6px; padding: 6px 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); background: #111; }
+.rv-ctrl .row { gap: 6px; }
+.rv-ctrl button { min-height: 44px; padding: 8px 12px; }
+.rv-ctrl .muted { color: #b8c2cc; }
 .fs-toast { position: absolute; left: 50%; top: 58px; transform: translateX(-50%); max-width: 80%; background: rgba(0,0,0,.8); color: #fff; padding: 10px 14px; border-radius: 12px; font-size: 14px; text-align: center; z-index: 9; pointer-events: none; }
 .fs-pill { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 460px); background: rgba(0,0,0,.65); color: #fff; padding: 8px 14px; border-radius: 99px; font-size: 14px; text-align: center; z-index: 4; pointer-events: none; }
 .fs-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(380px, 92%); background: var(--card); color: var(--ink); z-index: 8; padding: 12px; overflow: auto; box-shadow: -4px 0 14px rgba(0,0,0,.4); }
@@ -310,6 +319,7 @@ details.card > summary { cursor: pointer; font-size: 17px; }
 <script src="movimento.js"></script>
 <script src="autopose.js"></script>
 <script src="report.js"></script>
+<script src="corrida.js"></script>
 <script src="exporta.js"></script>
 <script src="app.js"></script>
 </body>

@@ -1,5 +1,5 @@
 // App de avaliação postural por fotos — uso no iPad (Safari), dados só no aparelho.
-/* global Angles, Report, Exporta */
+/* global Angles, Report, Exporta, Corrida */
 (function () {
   'use strict';
 
@@ -233,7 +233,7 @@
   }
 
   function tabsHtml() {
-    const t = [['home', 'Início'], ['ant', 'Anterior'], ['post', 'Posterior'], ['latD', 'Lateral D'], ['latE', 'Lateral E'], ['res', 'Resultados'], ['evol', 'Evolução'], ['mov', 'Movimento'], ['livres', 'Ângulos livres'], ['ficha', 'Ficha e conduta'], ['laudo', 'Laudo']];
+    const t = [['home', 'Início'], ['ant', 'Anterior'], ['post', 'Posterior'], ['latD', 'Lateral D'], ['latE', 'Lateral E'], ['res', 'Resultados'], ['evol', 'Evolução'], ['mov', 'Movimento'], ['corrida', 'Corrida'], ['livres', 'Ângulos livres'], ['ficha', 'Ficha e conduta'], ['laudo', 'Laudo']];
     return `<div class="tabs">${t.map(([k, l]) => `<button data-tab="${k}" class="${ED.tab === k ? 'primary' : ''}">${l}</button>`).join('')}</div>`;
   }
 
@@ -249,6 +249,7 @@
     else if (tab === 'res') renderResults();
     else if (tab === 'evol') renderEvol();
     else if (tab === 'mov') renderMov();
+    else if (tab === 'corrida') renderCorrida();
     else if (tab === 'livres') renderLivres();
     else if (tab === 'ficha') renderFicha();
     else renderLaudo();
@@ -262,6 +263,7 @@
     rapida: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="6" width="36" height="52" rx="5"/><circle cx="32" cy="18" r="4"/><path d="M32 22v14M24 27h16M32 36l-6 14M32 36l6 14"/><circle cx="32" cy="29" r="9" stroke-dasharray="3 4"/></svg>',
     angulos: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 50L40 20M12 50h42"/><path d="M26 50a14 14 0 0 0-6-12" /><circle cx="12" cy="50" r="3" fill="currentColor"/><circle cx="40" cy="20" r="3" fill="currentColor"/><circle cx="54" cy="50" r="3" fill="currentColor"/></svg>',
     movimento: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="26" cy="12" r="5"/><path d="M26 17l6 14 14 4M32 31l-8 8 10 6M20 22l-8-10M36 22l8-10M8 56h48"/></svg>',
+    corrida: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="38" cy="9" r="5"/><path d="M36 16l-8 16 10 8-4 16M28 32l-10 2-6 10M33 22l10 6 8-4M38 40l12 6"/><path d="M6 58h52" stroke-dasharray="4 5"/></svg>',
     importar: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="12" width="48" height="32" rx="4"/><circle cx="22" cy="24" r="4"/><path d="M8 38l14-10 10 8 8-6 16 12M32 50v8M26 54l6 6 6-6"/></svg>',
     resultados: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 54V10M10 54h46M18 44l12-14 8 8 14-18"/></svg>',
     evolucao: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="12" width="20" height="40" rx="3"/><rect x="36" y="12" width="20" height="40" rx="3"/><path d="M30 32h4M32 30l2 2-2 2"/></svg>',
@@ -275,12 +277,14 @@
     const marcadas = VIEW_KEYS.filter((k) => Object.keys(a.views[k].pts).length).length;
     const nMov = (typeof Mov !== 'undefined' ? Mov.summarize(a.mov).tests.length : 0) + Object.values((a.mov && a.mov.fotos) || {}).reduce((n, l) => n + (l || []).length, 0);
     const nLiv = (a.livres || []).length;
+    const nRun = a.corrida ? Object.values(a.corrida.vistas || {}).filter((v) => v.usada).length : 0;
     const big = [
       ['postura', 'Postura completa', `${fotos} de 4 vistas com foto · ${marcadas} marcadas`, () => renderTab('ant')],
       ['rapida', 'Análise rápida', 'Uma vista, em poucos toques', startQuick],
       ['angulos', 'Amplitude e ângulos', nLiv ? `${nLiv} foto(s) com ângulos livres` : 'Meça qualquer ângulo em qualquer foto', () => renderTab('livres')],
       ['importar', 'Importar fotos do aluno', 'Até 4 fotos de uma vez, uma por vista', importFotos],
       ['movimento', 'Testes de movimento', nMov ? `${nMov} registro(s)` : 'Agachamento overhead, step-down e outros', () => renderTab('mov')],
+      ['corrida', 'Mecânica da corrida', nRun ? `${nRun} vídeo(s) analisado(s)` : 'Vídeo quadro a quadro, tempos e ângulos', () => renderTab('corrida')],
     ];
     const small = [
       ['resultados', 'Resultados', 'res'], ['evolucao', 'Evolução', 'evol'], ['ficha', 'Ficha e conduta', 'ficha'], ['laudo', 'Laudo', 'laudo'],
@@ -1229,7 +1233,7 @@
         <option value="tecnico" ${a.tipoLaudo === 'tecnico' ? 'selected' : ''}>Registro técnico (completo, para o avaliador)</option>
         <option value="aluno" ${a.tipoLaudo === 'aluno' ? 'selected' : ''}>Relatório do aluno (resumo em linguagem simples)</option></select></div></div>
       <label style="display:flex;gap:8px;align-items:center;color:var(--ink);margin-top:8px"><input type="checkbox" id="l-mask" style="width:auto" ${a.mascara ? 'checked' : ''}> Ocultar o rosto nas fotos do laudo</label>
-      <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="l-fmov" style="width:auto" ${a.fotosMov ? 'checked' : ''}> Incluir no laudo as fotos dos testes de movimento e dos ângulos livres (o rosto não é ocultado nelas)</label>
+      <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="l-fmov" style="width:auto" ${a.fotosMov ? 'checked' : ''}> Incluir no laudo as fotos dos testes de movimento, da corrida e dos ângulos livres (o rosto não é ocultado nelas)</label>
       <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="l-val" style="width:auto" ${a.validado ? 'checked' : ''}> Conferi e validei as marcações de todas as vistas</label>
       <p class="muted">${a.validado ? 'Validado em ' + new Date(a.validado.em).toLocaleString('pt-BR') + '. Se você mudar um ponto ou a calibração, a validação é desfeita.' : 'Marque a confirmação para gerar o laudo: as marcações são validadas por quem avalia.'}</p>
       <details id="l-cfg" style="margin-top:8px" ${ED.cfgOpen ? 'open' : ''}><summary>Logos e texto do rodapé (vale para todos os laudos)</summary>
@@ -1354,6 +1358,183 @@
       M.fotos[tid] = M.fotos[tid].filter((x) => x.id !== f.id);
       ED.movOpen = tid; saveSoon(); renderMov();
     }));
+  }
+
+  // ---------- Mecânica da corrida (vídeo 2D) ----------
+  // O vídeo fica nas Fotos do aparelho: o app guarda só as marcações de tempo e os quadros escolhidos.
+  function runData(a) {
+    a.corrida = a.corrida || { cond: {}, vistas: {}, qualidade: '', obs: '' };
+    Corrida.VISTAS.forEach((x) => {
+      const v = (a.corrida.vistas[x.id] = a.corrida.vistas[x.id] || {});
+      v.passos = v.passos || [];
+      v.quadros = v.quadros || [];
+    });
+    return a.corrida;
+  }
+
+  function renderCorrida() {
+    const R = runData(ED.a);
+    const fmt = Corrida.fmt;
+    const tabela = (t) => `<div class="table-wrap"><table><tr><th>Lado</th><th>Passadas</th><th>Contato (ms)</th><th>Voo (ms)</th></tr>
+      ${['D', 'E'].map((s) => { const L = t.lados[s]; return `<tr><td>${s === 'D' ? 'Direito' : 'Esquerdo'}</td><td>${L.n}</td><td>${L.contato.media != null ? fmt(L.contato.media) + (L.contato.dp != null ? ' ± ' + fmt(L.contato.dp) : '') : ''}</td><td>${L.voo.media != null ? fmt(L.voo.media) + (L.voo.dp != null ? ' ± ' + fmt(L.voo.dp) : '') : ''}</td></tr>`; }).join('')}</table></div>
+      <p>${t.cadencia != null ? `Cadência: <b>${t.cadencia} passos/min</b>` : 'Cadência: marque passadas seguidas'}${t.difContato != null ? ` · diferença de contato entre os lados: <b>${fmt(t.difContato, 1)}%</b>` : ''}${t.difVoo != null ? ` · de voo: <b>${fmt(t.difVoo, 1)}%</b>` : ''}</p>`;
+    const vista = (x) => {
+      const v = R.vistas[x.id];
+      const t = x.tempos && v.passos.length ? Corrida.tempos(v.passos, Corrida.fator(v)) : null;
+      const av = v.usada ? Corrida.avisos(v, t) : [];
+      return `<details class="card mv" data-rv="${x.id}" ${ED.runOpen === x.id ? 'open' : ''}><summary><b>${esc(x.nome)}</b> <span class="muted">${v.usada ? `· ${v.passos.length} passo(s) · ${v.quadros.length} quadro(s)` : x.id === 'front' ? '· opcional' : ''}</span></summary>
+        <div class="grid2">
+          <div><label>Velocidade (km/h ou pace) — obrigatória</label><input data-rf="${x.id}|velocidade" value="${esc(v.velocidade || '')}"></div>
+          <div><label>Quadros/s da gravação (60, 120, 240)</label><input inputmode="numeric" data-rf="${x.id}|fpsGrav" value="${esc(v.fpsGrav || '')}"></div>
+          <div><label>Quadros/s do arquivo (o app detecta)</label><input inputmode="numeric" data-rf="${x.id}|fpsArq" value="${esc(v.fpsArq || '')}"></div>
+        </div>
+        <div class="row" style="margin-top:8px"><label class="btn primary" style="margin:0">Abrir vídeo desta vista<input type="file" accept="video/*" data-rvid="${x.id}" hidden></label>
+          ${v.passos.length ? `<button class="danger" data-rclr="${x.id}">Apagar marcações de tempo</button>` : ''}</div>
+        <p class="muted">O vídeo não é guardado no app (fica nas Fotos). Para continuar a marcação depois, abra o mesmo vídeo.</p>
+        ${t ? tabela(t) : x.tempos ? '<p class="muted">Sem passadas marcadas. No vídeo, marque o contato inicial e a saída do pé de 7 a 10 passadas por lado.</p>' : ''}
+        ${av.length ? `<ul class="warn">${av.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}
+        <h3>Quadros e ângulos</h3>
+        ${v.quadros.length ? v.quadros.map((q) => `<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:6px 0"><img src="${q.photo}" alt="" style="height:64px;border-radius:6px"><input data-rqn="${x.id}|${q.id}" value="${esc(q.nome)}" style="flex:1;min-width:120px"><span class="muted">${(q.free || []).filter((f) => Angles.freeValue(f)).length} ângulo(s)</span><button data-rqm="${x.id}|${q.id}">Medir</button><button class="danger" data-rqd="${x.id}|${q.id}">Apagar</button></div>`).join('') : '<p class="muted">No vídeo, pare no quadro (contato inicial, apoio médio, saída do pé) e toque em "Guardar quadro".</p>'}
+        <label>Observação desta vista</label><textarea data-rf="${x.id}|obs">${esc(v.obs || '')}</textarea></details>`;
+    };
+    const sug = Corrida.qualidadeSugerida(R);
+    main.innerHTML = `${tabsHtml()}
+      <div class="card"><h2>Mecânica da corrida</h2>
+        <p class="muted">Vídeo 2D é ferramenta de campo, não substitui laboratório. Registre a velocidade de cada vídeo, use de 60 a 120 quadros/s (ou câmera lenta), câmera perpendicular na altura do quadril e de 7 a 10 passadas por lado. Não existe cadência ideal nem ponto de corte universal: os números descrevem esta corrida.</p></div>
+      <div class="card"><h2>Condições</h2><div class="grid2">${Corrida.CONDICOES.map(([k, l, o]) => `<div><label>${esc(l)}</label>${o ? `<select data-rc="${k}">${o.map((x) => `<option ${R.cond[k] === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>` : `<input data-rc="${k}" value="${esc(R.cond[k] || '')}">`}</div>`).join('')}</div></div>
+      ${Corrida.VISTAS.map(vista).join('')}
+      <div class="card"><h2>Qualidade do vídeo</h2>
+        <div class="grid2"><div><label>Classificação do avaliador</label><select id="r-q">${Corrida.QUALIDADE.map((q) => `<option value="${q}" ${R.qualidade === q ? 'selected' : ''}>${q || '—'}</option>`).join('')}</select></div></div>
+        <p class="muted">${sug ? `Sugestão pelo protocolo: <b>${sug}</b> (alta pede as quatro vistas, velocidade conhecida, 60–120 quadros/s e passadas suficientes). Quem decide é você.` : 'Abra ao menos um vídeo para ver a sugestão.'}</p>
+        <label>Observação geral da corrida (aparece no laudo)</label><textarea id="r-obs">${esc(R.obs || '')}</textarea>
+        <p class="warn" id="r-avoid" hidden>Este texto usa um termo que o manual pede para evitar (ex.: valgo, pronação excessiva, risco de lesão). Descreva o que foi visto no vídeo.</p></div>`;
+    bindTabs();
+    const vOf = (id) => R.vistas[id];
+    main.querySelectorAll('details[data-rv]').forEach((d) => d.addEventListener('toggle', () => { if (d.open) ED.runOpen = d.dataset.rv; }));
+    main.querySelectorAll('[data-rc]').forEach((el) => (el[el.tagName === 'SELECT' ? 'onchange' : 'oninput'] = () => { R.cond[el.dataset.rc] = el.value; saveSoon(); }));
+    main.querySelectorAll('[data-rf]').forEach((el) => (el.onchange = () => {
+      const [id, k] = el.dataset.rf.split('|');
+      vOf(id)[k] = el.value;
+      if (k !== 'obs' && el.value) vOf(id).usada = true;
+      saveSoon(); ED.runOpen = id; renderCorrida();
+    }));
+    main.querySelectorAll('[data-rvid]').forEach((inp) => (inp.onchange = () => { if (inp.files[0]) openRunVideo(inp.dataset.rvid, inp.files[0]); }));
+    main.querySelectorAll('[data-rclr]').forEach((b) => (b.onclick = () => { if (!confirm('Apagar todas as marcações de tempo desta vista?')) return; vOf(b.dataset.rclr).passos = []; saveSoon(); ED.runOpen = b.dataset.rclr; renderCorrida(); }));
+    const findQ = (key) => { const [id, qid] = key.split('|'); return { id, q: vOf(id).quadros.find((x) => x.id === qid) }; };
+    main.querySelectorAll('[data-rqn]').forEach((el) => (el.oninput = () => { const { q } = findQ(el.dataset.rqn); if (q) { q.nome = el.value; saveSoon(); } }));
+    main.querySelectorAll('[data-rqm]').forEach((b) => (b.onclick = () => {
+      const { id, q } = findQ(b.dataset.rqm);
+      if (!q) return;
+      openFreeWorkspace({ title: 'Corrida — ' + Corrida.VISTAS.find((x) => x.id === id).nome + ' — ' + q.nome, photo: q.photo, free: q.free, templates: Corrida.MODELOS[id], onChange: saveSoon, back: () => { ED.runOpen = id; renderTab('corrida'); } });
+    }));
+    main.querySelectorAll('[data-rqd]').forEach((b) => (b.onclick = () => {
+      const { id, q } = findQ(b.dataset.rqd);
+      if (!q || !confirm('Apagar este quadro e os ângulos medidos nele?')) return;
+      vOf(id).quadros = vOf(id).quadros.filter((x) => x.id !== q.id);
+      saveSoon(); ED.runOpen = id; renderCorrida();
+    }));
+    $('#r-q').onchange = (e) => { R.qualidade = e.target.value; saveSoon(); };
+    const checkAvoid = () => ($('#r-avoid').hidden = !AVOID_TERMS.test(R.obs || ''));
+    $('#r-obs').oninput = (e) => { R.obs = e.target.value; saveSoon(); checkAvoid(); };
+    checkAvoid();
+  }
+
+  // Player quadro a quadro: marca contato inicial e saída do pé, guarda quadros como foto para medir ângulos.
+  function openRunVideo(id, file) {
+    const R = runData(ED.a), v = R.vistas[id], X = Corrida.VISTAS.find((x) => x.id === id);
+    v.usada = true;
+    const url = URL.createObjectURL(file);
+    document.body.style.overflow = 'hidden';
+    const root = document.createElement('div');
+    root.className = 'fs rv';
+    root.innerHTML = `<div class="fs-head"><button type="button" class="fs-x" data-r="close" aria-label="Fechar">${ICON.close}</button><div class="fs-title"><b>${esc('Corrida — ' + X.nome)}</b><span class="fs-sub rv-sub"></span></div></div>
+      <div class="rv-stage"><video class="rv-video" src="${url}" playsinline muted preload="auto"></video><div class="fs-toast" hidden></div></div>
+      <div class="rv-bar"><input type="range" class="rv-seek" min="0" max="1000" value="0"><span class="rv-time"></span></div>
+      <div class="rv-ctrl">
+        <div class="row"><button data-r="-10">−10</button><button data-r="-1">◀ 1</button><button data-r="play" class="primary">▶</button><button data-r="+1">1 ▶</button><button data-r="+10">+10</button>
+          <select class="rv-rate" style="width:auto"><option value="0.25">0,25×</option><option value="0.5">0,5×</option><option value="1" selected>1×</option></select></div>
+        ${X.tempos ? `<div class="row"><span class="muted">Pé:</span><button data-r="ladoD">Direito</button><button data-r="ladoE">Esquerdo</button><button data-r="ic">Contato inicial</button><button data-r="to">Saída do pé</button><button data-r="undo">Desfazer</button></div>` : ''}
+        <div class="row"><select class="rv-mom" style="width:auto">${Corrida.MOMENTOS.map((m) => `<option>${esc(m)}</option>`).join('')}</select><button data-r="frame">Guardar quadro</button><span class="muted rv-info"></span></div>
+      </div>`;
+    document.body.appendChild(root);
+    const vid = root.querySelector('.rv-video'), seek = root.querySelector('.rv-seek'), toastEl = root.querySelector('.fs-toast');
+    const S = { lado: 'D', pend: null, fps: Corrida.num(v.fpsArq) || 30 };
+    const toast = (m, ms) => { toastEl.textContent = m; toastEl.hidden = false; clearTimeout(S.tt); S.tt = setTimeout(() => (toastEl.hidden = true), ms || 2200); };
+    const snap = (t) => Math.round(t * S.fps) / S.fps;
+    const frameNo = () => Math.round(vid.currentTime * S.fps);
+    const info = () => {
+      const t = X.tempos ? Corrida.tempos(v.passos, Corrida.fator(v)) : null;
+      root.querySelector('.rv-sub').textContent = `Arquivo ${Corrida.num(v.fpsArq) ? S.fps + ' q/s' : 'sem q/s (passo de 1/30 s)'}${v.fpsGrav ? ' · gravação ' + v.fpsGrav + ' q/s' : ''}${t ? ` · passadas D ${t.lados.D.n} · E ${t.lados.E.n}` : ''}`;
+      root.querySelector('.rv-time').textContent = `quadro ${frameNo()} · ${vid.currentTime.toFixed(3).replace('.', ',')} s`;
+      root.querySelector('.rv-info').textContent = S.pend ? `Contato ${S.pend.lado} marcado: marque a saída do pé` : `Próximo: pé ${S.lado === 'D' ? 'direito' : 'esquerdo'} · ${v.quadros.length} quadro(s)`;
+      root.querySelectorAll('[data-r="ladoD"],[data-r="ladoE"]').forEach((b) => b.classList.toggle('primary', b.dataset.r === 'lado' + S.lado));
+      if (vid.duration) seek.value = Math.round((vid.currentTime / vid.duration) * 1000);
+    };
+    const go = (t) => { vid.pause(); vid.currentTime = Math.max(0, Math.min(vid.duration || 0, snap(t))); };
+    // Quadros por segundo do arquivo: mede o intervalo entre quadros apresentados (Safari 15.4+); sem isso, o avaliador informa.
+    const detectFps = () => new Promise((res) => {
+      if (!vid.requestVideoFrameCallback) return res(null);
+      const ts = [];
+      const cb = (_, m) => { ts.push(m.mediaTime); if (ts.length < 14) vid.requestVideoFrameCallback(cb); else { vid.pause(); const d = ts.slice(1).map((x, i) => x - ts[i]).filter((x) => x > 0).sort((a, b) => a - b); res(d.length ? Math.round(1 / d[Math.floor(d.length / 2)]) : null); } };
+      vid.requestVideoFrameCallback(cb);
+      vid.play().catch(() => res(null));
+      setTimeout(() => { vid.pause(); res(null); }, 4000);
+    });
+    vid.addEventListener('loadedmetadata', async () => {
+      if (!Corrida.num(v.fpsArq)) {
+        const f = await detectFps();
+        if (f) { v.fpsArq = String(f); S.fps = f; saveSoon(); }
+        vid.currentTime = 0;
+        if (!f) return toast('Não consegui detectar os quadros/s do arquivo: usando 30. Se for outro valor, informe na ficha e abra o vídeo de novo.', 4200), info();
+      }
+      if (!v.fpsGrav) toast('Informe na ficha os quadros/s da gravação (câmera lenta: 120 ou 240).', 3600);
+      info();
+    });
+    vid.addEventListener('timeupdate', info);
+    vid.addEventListener('seeked', info);
+    vid.addEventListener('pause', () => (root.querySelector('[data-r="play"]').textContent = '▶'));
+    vid.addEventListener('play', () => (root.querySelector('[data-r="play"]').textContent = '❚❚'));
+    seek.oninput = () => { if (vid.duration) go((seek.value / 1000) * vid.duration); };
+    root.querySelector('.rv-rate').onchange = (e) => { vid.playbackRate = +e.target.value; };
+    const close = () => { vid.pause(); URL.revokeObjectURL(url); root.remove(); document.body.style.overflow = ''; ED.runOpen = id; DB.put('assessments', ED.a); renderTab('corrida'); };
+    root.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-r]');
+      if (!b) return;
+      const r = b.dataset.r;
+      if (r === 'close') return close();
+      if (r === 'play') return vid.paused ? vid.play() : vid.pause();
+      if (/^[+-]\d+$/.test(r)) return go(vid.currentTime + (+r) / S.fps);
+      if (r === 'ladoD' || r === 'ladoE') { S.lado = r.slice(-1); return info(); }
+      if (r === 'ic') { vid.pause(); S.pend = { lado: S.lado, ic: snap(vid.currentTime) }; toast('Contato inicial marcado. Avance até a saída do pé.'); return info(); }
+      if (r === 'to') {
+        vid.pause();
+        if (!S.pend) return toast('Marque primeiro o contato inicial.');
+        const to = snap(vid.currentTime);
+        if (to <= S.pend.ic) return toast('A saída do pé precisa vir depois do contato inicial.');
+        v.passos.push({ lado: S.pend.lado, ic: S.pend.ic, to });
+        S.lado = S.pend.lado === 'D' ? 'E' : 'D'; S.pend = null;
+        saveSoon(); toast(`Passo salvo. Agora o pé ${S.lado === 'D' ? 'direito' : 'esquerdo'}.`);
+        return info();
+      }
+      if (r === 'undo') {
+        if (S.pend) { S.pend = null; toast('Contato inicial desfeito.'); }
+        else if (v.passos.length) { const p = v.passos.pop(); S.lado = p.lado; saveSoon(); toast('Último passo desfeito.'); }
+        else toast('Nada para desfazer.');
+        return info();
+      }
+      if (r === 'frame') {
+        vid.pause();
+        const k = Math.min(1, 1600 / Math.max(vid.videoWidth, vid.videoHeight));
+        const c = document.createElement('canvas');
+        c.width = Math.round(vid.videoWidth * k); c.height = Math.round(vid.videoHeight * k);
+        c.getContext('2d').drawImage(vid, 0, 0, c.width, c.height);
+        const mom = root.querySelector('.rv-mom').value;
+        v.quadros.push({ id: uid(), nome: `${mom}${X.tempos ? ' ' + S.lado : ''} (quadro ${frameNo()})`, momento: mom, lado: X.tempos ? S.lado : '', t: vid.currentTime, photo: c.toDataURL('image/jpeg', 0.88), free: [] });
+        await DB.put('assessments', ED.a);
+        toast('Quadro guardado. Meça os ângulos dele na aba Corrida.');
+        return info();
+      }
+    });
   }
 
   // ---------- Checklist de captura ----------

@@ -2,7 +2,7 @@
 // Dois tipos: "registro técnico" (completo, para o avaliador) e "relatório do aluno" (resumo em linguagem simples).
 // Estrutura inspirada no relatório do APECS (uma página por vista, tabela e miniaturas por medida),
 // com as regras do Manual de Avaliação Postural e Fotogrametria e do complemento técnico.
-/* global Angles, Mov */
+/* global Angles, Mov, Corrida */
 (function (root) {
   'use strict';
 
@@ -184,6 +184,8 @@
       </div>`;
     }
 
+    if (typeof Corrida !== 'undefined' && a.corrida) html += await corridaPage(a, head, h, fotosMov);
+
     // Antes e depois
     if (prev) {
       let ba = '', escalaMsg = true;
@@ -242,6 +244,38 @@
   }
 
   const fmtN = (v) => String(Math.round(v * 10) / 10).replace('.', ',');
+
+  // Mecânica da corrida (Manual de Biomecânica da Corrida v3.0): condições, qualidade do vídeo (saída obrigatória),
+  // tempos por lado, quadros com ângulos e limites da análise 2D.
+  const LIMITES_CORRIDA = 'Vídeo 2D é ferramenta de campo: tempos e cadência têm boa confiabilidade em vídeo padronizado; ângulos 2D têm validade de baixa a moderada frente ao 3D, sobretudo fora do plano sagital. Não existe cadência ideal nem ponto de corte universal (overstride é Classe D). Os achados não estabelecem diagnóstico nem risco individual de lesão e valem para a velocidade, a superfície e o calçado registrados.';
+  async function corridaPage(a, head, h, fotosMov) {
+    const { esc } = h, R = a.corrida, C = Corrida;
+    const vs = C.VISTAS.filter((x) => R.vistas && R.vistas[x.id] && R.vistas[x.id].usada);
+    if (!vs.length) return '';
+    const cond = C.CONDICOES.filter(([k]) => R.cond && R.cond[k]).map(([k, l]) => `<tr><th style="width:35%">${esc(l)}</th><td>${esc(R.cond[k])}</td></tr>`).join('');
+    const q = R.qualidade || 'não classificada';
+    let body = '', imgs = '';
+    for (const x of vs) {
+      const v = R.vistas[x.id];
+      const t = x.tempos && (v.passos || []).length ? C.tempos(v.passos, C.fator(v)) : null;
+      const av = C.avisos(v, t);
+      const angs = (v.quadros || []).flatMap((qd) => (qd.free || []).map((f) => ({ qd, f, fv: Angles.freeValue(f) })).filter((o) => o.fv));
+      body += `<h3>${esc(x.nome)}</h3><p class="note">Velocidade: ${esc(v.velocidade || 'não registrada')} · gravação ${esc(v.fpsGrav || '?')} quadros/s${v.fpsArq && v.fpsGrav && v.fpsArq !== v.fpsGrav ? ' (arquivo ' + esc(v.fpsArq) + ' quadros/s, câmera lenta)' : ''}.</p>
+        ${t ? `<table><tr><th>Lado</th><th>Passadas</th><th>Contato (ms)</th><th>Voo (ms)</th></tr>${['D', 'E'].map((s) => { const L = t.lados[s]; return `<tr><td>${s === 'D' ? 'Direito' : 'Esquerdo'}</td><td>${L.n}</td><td>${L.contato.media != null ? C.fmt(L.contato.media) + (L.contato.dp != null ? ' ± ' + C.fmt(L.contato.dp) : '') : ''}</td><td>${L.voo.media != null ? C.fmt(L.voo.media) + (L.voo.dp != null ? ' ± ' + C.fmt(L.voo.dp) : '') : ''}</td></tr>`; }).join('')}</table>
+          <p>${t.cadencia != null ? `Cadência: <b>${t.cadencia} passos/min</b>.` : ''}${t.difContato != null ? ` Diferença de contato entre os lados: ${C.fmt(t.difContato, 1)}%.` : ''}${t.difVoo != null ? ` De voo: ${C.fmt(t.difVoo, 1)}%.` : ''} <span class="note">Média ± desvio das passadas marcadas.</span></p>` : ''}
+        ${angs.length ? `<table><tr><th>Quadro</th><th>Medida</th><th>Valor</th><th>Tipo</th></tr>${angs.map((o) => `<tr><td>${esc(o.qd.nome)}</td><td>${esc(o.f.label)}</td><td><b>${Angles.fmt(o.fv.value)}°</b></td><td>${esc(o.fv.text)}</td></tr>`).join('')}</table>` : ''}
+        ${v.obs ? `<p>${esc(v.obs)}</p>` : ''}
+        ${av.length ? `<ul class="note">${av.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : ''}`;
+      if (fotosMov) for (const qd of (v.quadros || []).filter((qd) => (qd.free || []).some((f) => Angles.freeValue(f)))) imgs += `<div class="crop"><img src="${await h.freeImage(qd.photo, qd.free)}" alt=""><div><b>${esc(x.nome)}</b> · ${esc(qd.nome)}</div></div>`;
+    }
+    return `<div class="page">${head}<h2>Mecânica da corrida</h2>
+      ${cond ? `<table>${cond}</table>` : '<p class="note">Condições não registradas.</p>'}
+      <p>A qualidade do vídeo foi classificada como <b>${esc(q)}</b>, permitindo análise com confiança <b>${esc(q)}</b> para as variáveis descritas.</p>
+      ${body}
+      ${R.obs ? `<h3>Observação do avaliador</h3><p>${esc(R.obs)}</p>` : ''}
+      ${imgs ? `<div class="crops" style="grid-template-columns:repeat(2,1fr)">${imgs}</div>` : ''}
+      <p class="note">${esc(LIMITES_CORRIDA)}</p></div>`;
+  }
 
   function summaryTable(groups, a, h) {
     const rows = [];

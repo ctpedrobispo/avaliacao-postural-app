@@ -113,6 +113,20 @@ Vieram da comparação com outros apps de postura (só fontes públicas; nada co
 - **Logos e rodapé do laudo:** na aba Laudo, em "Logos e texto do rodapé", escolha mostrar ou não os logos do CT e da Corre+, adicione um logo próprio (PNG mantém o fundo transparente) e um texto fixo no fim do laudo. As credenciais continuam sempre no laudo.
 - Versão no laudo: v13. Código das exportações em `app/exporta.js`, com testes em `exporta.test.js`.
 
+## Mecânica da corrida em vídeo (v20, 31/10/2026)
+
+Para substituir o uso do Yogger na avaliação da corrida, seguindo o Manual de Biomecânica da Corrida Pedro Bispo v3.0.
+
+- **Aba Corrida** (e cartão "Mecânica da corrida" no início): condições (esteira ou solo, inclinação, calçado, câmera, momento, sintomas) e uma ficha por vista (lateral direita, lateral esquerda, posterior e frontal opcional) com **velocidade obrigatória** e quadros/s da gravação e do arquivo.
+- **Vídeo quadro a quadro:** abre o vídeo das Fotos, avança ±1 e ±10 quadros, velocidade 0,25×/0,5×/1×. **O vídeo não é guardado no app**: ficam só as marcações e os quadros escolhidos.
+- **Tempos:** escolha o pé e toque em "Contato inicial" e "Saída do pé" em cada passada (o pé alterna sozinho; Desfazer). O app calcula, por lado, tempo de contato e de voo (média ± desvio), cadência e a diferença entre os lados em %. Câmera lenta: tempo real = tempo no arquivo ÷ (quadros/s da gravação ÷ quadros/s do arquivo). O app tenta detectar os quadros/s do arquivo; se não conseguir, avisa.
+- **Avisos do protocolo:** sem velocidade, abaixo de 60 quadros/s, quadros/s do arquivo não informados e menos de 7 passadas por lado.
+- **Quadros e ângulos:** "Guardar quadro" vira uma foto com ângulos livres e modelos por vista (contato inicial, apoio médio e saída do pé na lateral; pelve, retropé e tronco na posterior; pelve e joelho na frontal). Modelos **PENDENTES DE VALIDAÇÃO** com o manual.
+- **Qualidade do vídeo:** sugestão pelo protocolo (alta, moderada, baixa) e classificação do avaliador; o laudo traz a frase obrigatória do manual.
+- **Laudo técnico:** página "Mecânica da corrida" com condições, tempos por lado, ângulos, avisos e limites da análise 2D (sem cadência ideal nem ponto de corte). Fotos dos quadros só com a opção de incluir fotos dos testes.
+- **CSV:** cadência, contato e voo por lado e ângulos dos quadros, com a velocidade.
+- Código em `app/corrida.js`, testes em `corrida.test.js`. Não testado em iPad/iPhone de verdade: conferir a precisão do avanço quadro a quadro e a detecção dos quadros/s com vídeo em câmera lenta do iPhone.
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:
@@ -155,6 +169,7 @@ Os nossos valores ficaram a até 2° dos do APECS. A diferença vem da leitura d
 - `app.js`: telas, marcação na foto e armazenamento.
 - `report.js`: laudo.
 - `exporta.js`: planilha CSV das medidas e modelos de ângulos livres.
+- `corrida.js`: mecânica da corrida (tempos, cadência, avisos, qualidade, modelos por vista).
 - `*.test.js`: testes. Rodar com `node --test`.
 - `build.js`: gera `dist/avaliacao-postural.html`, uma página única com tudo embutido, para publicar.
 - `manifest.webmanifest` e `sw.js`: instalação na tela inicial e uso sem internet, quando servido por https.
