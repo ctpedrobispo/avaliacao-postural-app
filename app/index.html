@@ -276,29 +276,32 @@ details.card > summary { cursor: pointer; font-size: 17px; }
 /* ===== Laudo na tela do celular: ajusta à largura (a impressão em A4 não muda) ===== */
 @media screen and (max-width: 700px) {
   .card.rp { padding: 10px; max-width: 100%; overflow-x: hidden; overflow-wrap: anywhere; font-size: 10.5pt; }
-  .rp img { max-width: 100%; height: auto; }
-  .rp .brandbar img { height: 13mm; }
-  .rp .head { flex-direction: column; gap: 4px; }
-  .rp .head .note { text-align: left !important; }
-  .rp h1 { font-size: 15pt; }
-  .rp h2 { font-size: 12pt; }
-  .rp .view { grid-template-columns: 1fr; }
-  .rp .crops { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .rp .cred .cols { grid-template-columns: 1fr; }
-  .rp table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; font-size: 8.5pt; }
-  .rp th, .rp td { padding: 3px 4px; }
+  .card.rp img { max-width: 100%; height: auto; }
+  .card.rp .brandbar img { height: 13mm; }
+  .card.rp .head { flex-direction: column; gap: 4px; }
+  .card.rp .head .note { text-align: left !important; }
+  .card.rp h1 { font-size: 15pt; }
+  .card.rp h2 { font-size: 12pt; }
+  .card.rp .view { grid-template-columns: 1fr; }
+  .card.rp .crops { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .card.rp .cred .cols { grid-template-columns: 1fr; }
+  .card.rp table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; font-size: 8.5pt; }
+  .card.rp th, .card.rp td { padding: 3px 4px; }
   main { overflow-x: hidden; }
 }
 
 @media screen and (max-width: 700px) {
-  .rp table { overflow-wrap: normal; }
-  .rp table.stack, .rp table.stack tbody { display: block; overflow: visible; }
-  .rp table.stack tr.hdr { display: none; }
-  .rp table.stack tr { display: block; border: 1px solid #bbb; border-radius: 6px; margin: 6px 0; padding: 3px 4px; background: #fff; }
-  .rp table.stack td { display: flex; gap: 8px; border: 0; padding: 2px 4px; overflow-wrap: break-word; }
-  .rp table.stack td::before { content: attr(data-label); flex: none; width: 88px; font-weight: 700; color: #13406b; }
-  .rp table.stack td:empty { display: none; }
+  .card.rp table { overflow-wrap: normal; }
+  .card.rp table.stack, .card.rp table.stack tbody { display: block; overflow: visible; }
+  .card.rp table.stack tr.hdr { display: none; }
+  .card.rp table.stack tr { display: block; border: 1px solid #bbb; border-radius: 6px; margin: 6px 0; padding: 3px 4px; background: #fff; }
+  .card.rp table.stack td { display: flex; gap: 8px; border: 0; padding: 2px 4px; overflow-wrap: break-word; }
+  .card.rp table.stack td::before { content: attr(data-label); flex: none; width: 88px; font-weight: 700; color: #13406b; }
+  .card.rp table.stack td:empty { display: none; }
 }
+
+#savefail { position: fixed; left: 10px; right: 10px; top: max(10px, env(safe-area-inset-top)); z-index: 300; background: #fff3cd; color: #5c3b00; border: 2px solid #f0a23a; border-radius: 12px; padding: 12px 14px; font-size: 15px; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+#savefail button { margin-left: 8px; }
 </style>
 </head>
 <body>

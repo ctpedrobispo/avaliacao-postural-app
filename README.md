@@ -137,6 +137,12 @@ Para substituir o uso do Yogger na avaliação da corrida, seguindo o Manual de 
 - Referências consultadas (fontes públicas): padrão ISAK de circunferências, lista de medidas do Hevy (bíceps, antebraço, coxa e panturrilha em lados separados). O MFIT e o Next Fit guardam as medidas dentro da ficha de cada aluno, e as fichas não foram abertas.
 - Código em `app/medidas.js`, testes em `medidas.test.js`.
 
+## PDF gerado no próprio app e aviso de falha ao salvar (v22, 10/11/2026)
+
+- **Salvar PDF** (aba Laudo): gera o PDF em A4 dentro do app, página por página (html2canvas 1.4.1 + jsPDF 2.5.2, licença MIT, em `app/vendor/`, baixados só na primeira vez que se gera um PDF) e depois o botão **Compartilhar PDF** abre o compartilhar do aparelho (Salvar em Arquivos, WhatsApp, Imprimir). Não depende da impressão do Safari. O texto do PDF é imagem (não dá para selecionar). O botão **Imprimir** continua igual.
+- **Gravação:** se o aparelho não conseguir salvar (por exemplo, espaço cheio), aparece um aviso no topo; antes a falha era silenciosa. O app também pede ao navegador armazenamento persistente.
+- Ao rodar os testes, use `node --test *.test.js` (a pasta do projeto contém outras pastas com arquivos de teste que não são do app).
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:

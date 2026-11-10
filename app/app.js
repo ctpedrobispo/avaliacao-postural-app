@@ -18,8 +18,16 @@
       return new Promise((res, rej) => {
         const t = db.transaction(store, mode);
         const rq = fn(t.objectStore(store));
+        let done = false;
         t.oncomplete = () => res(rq && rq.result);
-        t.onerror = () => rej(t.error);
+        // erro ou cancelamento (ex.: espaço do aparelho cheio): avisa na tela em vez de falhar calado
+        t.onerror = t.onabort = () => {
+          if (done) return;
+          done = true;
+          const e = t.error || new Error('gravação cancelada pelo aparelho');
+          if (mode === 'readwrite' && typeof window.__onSaveFail === 'function') window.__onSaveFail(e);
+          rej(e);
+        };
       });
     };
     return {
@@ -340,7 +348,19 @@
   // ---------- Editor ----------
   const ED = { active: false, undo: [], pend: null, mark: 1, calibTmp: null, a: null, s: null, tab: 'ant', img: null, sel: null, tool: 'mark', tf: { s: 1, x: 0, y: 0 }, grid: true, plumb: true, guide: true, ptrs: new Map(), drag: null, pinch: null, freeTmp: null, loupe: null };
   let saveTimer;
-  const saveSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => DB.put('assessments', ED.a), 400); };
+  const saveSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => DB.put('assessments', ED.a).catch(() => { /* aviso já mostrado */ }), 400); };
+  let saveFailT = 0;
+  window.__onSaveFail = (e) => {
+    if (Date.now() - saveFailT < 20000) return;
+    saveFailT = Date.now();
+    let el = document.getElementById('savefail');
+    if (!el) { el = document.createElement('div'); el.id = 'savefail'; document.body.appendChild(el); }
+    const cheio = e && (e.name === 'QuotaExceededError' || /quota|space|espaço/i.test(e.message || ''));
+    el.innerHTML = `<b>Não foi possível salvar neste aparelho.</b> ${cheio ? 'O espaço do app está cheio.' : esc((e && (e.name || e.message)) || '')} Faça uma cópia de segurança e apague avaliações antigas ou fotos que não usa. <button type="button">Fechar</button>`;
+    el.querySelector('button').onclick = () => el.remove();
+  };
+  // pede ao navegador para não apagar os dados do app por falta de espaço
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (_) { /* ok */ }
 
   async function openEditor(id, tab) {
     ED.a = normalize(await DB.get('assessments', id));
@@ -1346,6 +1366,49 @@
     rows.slice(1).forEach((r) => [...r.cells].forEach((c, i) => c.setAttribute('data-label', (ths[i] && ths[i].textContent) || '')));
   }
 
+  // ---------- PDF do laudo gerado no próprio app (não depende da impressão do Safari) ----------
+  const loadScript = (src) => new Promise((res, rej) => {
+    if (document.querySelector('script[data-src="' + src + '"]')) return res();
+    const s = document.createElement('script');
+    s.src = src; s.dataset.src = src;
+    s.onload = res; s.onerror = () => rej(new Error('não carregou ' + src + ' (a primeira vez precisa de internet)'));
+    document.head.appendChild(s);
+  });
+  async function laudoPdf(html, onStep) {
+    await loadScript('vendor/html2canvas.min.js');
+    await loadScript('vendor/jspdf.umd.min.js');
+    // largura útil do A4 com margens de 12 mm (≈ 703 px), igual à impressão
+    const box = document.createElement('div');
+    box.className = 'rp pdf-render';
+    box.style.cssText = 'position:fixed;left:-12000px;top:0;width:703px;background:#fff;color:#000;';
+    box.innerHTML = html;
+    document.body.appendChild(box);
+    try {
+      await Promise.all([...box.querySelectorAll('img')].map((im) => (im.complete ? 0 : new Promise((r) => { im.onload = im.onerror = r; }))));
+      const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', compress: true });
+      const M = 12, CW = 210 - 2 * M, CH = 297 - 2 * M;
+      const pages = [...box.querySelectorAll('.page')];
+      let first = true;
+      for (let i = 0; i < pages.length; i++) {
+        if (onStep) onStep(i + 1, pages.length);
+        const c = await window.html2canvas(pages[i], { scale: 1.6, backgroundColor: '#ffffff', logging: false, windowWidth: 703 });
+        const pxPerMm = c.width / CW, sliceH = Math.floor(CH * pxPerMm);
+        for (let y = 0; y < c.height; y += sliceH) {
+          const h = Math.min(sliceH, c.height - y);
+          const part = document.createElement('canvas');
+          part.width = c.width; part.height = h;
+          part.getContext('2d').drawImage(c, 0, y, c.width, h, 0, 0, c.width, h);
+          if (!first) pdf.addPage();
+          first = false;
+          pdf.addImage(part.toDataURL('image/jpeg', 0.85), 'JPEG', M, M, CW, h / pxPerMm);
+          part.width = part.height = 0;
+        }
+        c.width = c.height = 0;
+      }
+      return pdf.output('blob');
+    } finally { box.remove(); }
+  }
+
   async function renderLaudo() {
     const a = ED.a, pf = state.perfil;
     const savePerfil = async (rerender) => { await DB.put('settings', pf); if (rerender) renderLaudo(); };
@@ -1383,13 +1446,35 @@
     const history = (await studentHistory(a.studentId)).map((x) => (x.id === a.id ? a : x));
     const html = await Report.build({ a, s: ED.s, prev, history, perfil: state.perfil, refs: state.refs, opts: { tipo: a.tipoLaudo, mascara: a.mascara, fotosMov: !!a.fotosMov },
       helpers: { loadImg, drawView, allResults, flagFor, refFor, CLASSES, CONDICOES, SITUACOES, fmtDate, esc, CHECKLIST, reproRows, calibNotes, beforeAfterCanvas, chartImage, seriesFor, freeImage } });
-    main.innerHTML = controls + `<div class="card"><div class="row"><button class="primary" id="print">Imprimir / salvar em PDF</button>
-      <span class="muted">No iPad: toque em Imprimir, depois em Compartilhar (ou afaste dois dedos na prévia) e escolha "Salvar em Arquivos".</span></div></div>
+    main.innerHTML = controls + `<div class="card"><div class="row"><button class="primary" id="pdf">Salvar PDF</button><button id="print">Imprimir</button></div>
+      <p class="muted" id="pdf-st">Salvar PDF gera o arquivo aqui mesmo; depois toque em "Compartilhar PDF" e escolha Salvar em Arquivos, WhatsApp ou Imprimir.</p></div>
       <div class="card rp">${html}</div>`;
     main.querySelectorAll('.card.rp table').forEach(stackTable);
     $('#report').innerHTML = `<div class="rp">${html}</div>`;
     bindControls();
     $('#print').onclick = () => window.print();
+    $('#pdf').onclick = async () => {
+      const b = $('#pdf'), st = $('#pdf-st');
+      b.disabled = true;
+      try {
+        const blob = await laudoPdf(html, (i, n) => { st.textContent = 'Gerando o PDF: página ' + i + ' de ' + n + '…'; });
+        const base = String((ED.s && ED.s.nome) || 'aluno').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '-');
+        const file = new File([blob], 'laudo-' + base + '-' + (a.data || today()) + '.pdf', { type: 'application/pdf' });
+        st.innerHTML = 'PDF pronto (' + Math.round(blob.size / 1024) + ' KB). <button class="primary" id="pdf-go">Compartilhar PDF</button>';
+        // o compartilhar precisa de um toque novo (o iPad não deixa abrir depois de uma espera longa)
+        $('#pdf-go').onclick = async () => {
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try { await navigator.share({ files: [file], title: file.name }); } catch (_) { /* cancelado */ }
+            return;
+          }
+          const u = URL.createObjectURL(file), l = document.createElement('a');
+          l.href = u; l.download = file.name; document.body.appendChild(l); l.click(); l.remove();
+          setTimeout(() => URL.revokeObjectURL(u), 60000);
+        };
+      } catch (e) {
+        st.textContent = 'Não consegui gerar o PDF: ' + ((e && e.message) || e) + '. Tente Imprimir.';
+      } finally { b.disabled = false; }
+    };
   }
 
   // ---------- Testes de movimento ----------
