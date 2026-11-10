@@ -143,6 +143,12 @@ Para substituir o uso do Yogger na avaliação da corrida, seguindo o Manual de 
 - **Gravação:** se o aparelho não conseguir salvar (por exemplo, espaço cheio), aparece um aviso no topo; antes a falha era silenciosa. O app também pede ao navegador armazenamento persistente.
 - Ao rodar os testes, use `node --test *.test.js` (a pasta do projeto contém outras pastas com arquivos de teste que não são do app).
 
+## Medidas corporais dentro do laudo (v23, 10/11/2026)
+
+- Na aba **Laudo** há a opção **Incluir no laudo as medidas corporais** (ligada por padrão quando o aluno tem medições até a data da avaliação). Ela acrescenta uma página com a evolução das circunferências, direito × esquerdo, relação cintura/quadril e os gráficos, no laudo técnico e no relatório do aluno, antes da conduta. Assim sai **um PDF só**.
+- Só entram as medições com data até a data da avaliação. As credenciais não se repetem na página das medidas (já saem no fim do laudo).
+- A tela **Medidas corporais** também ganhou **Salvar PDF** (gerado no app, com Compartilhar PDF), além do Imprimir.
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:

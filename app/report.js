@@ -73,11 +73,12 @@
   async function build({ a, s, prev, history, perfil, opts, helpers: h }) {
     const tipo = (opts && opts.tipo) || 'tecnico';
     const mask = opts ? opts.mascara !== false : true;
-    return tipo === 'aluno' ? buildAluno({ a, s, perfil, mask, h }) : buildTecnico({ a, s, prev, history: history || [a], perfil, mask, fotosMov: !!(opts && opts.fotosMov), h });
+    const med = (opts && opts.medidas) || null;
+    return tipo === 'aluno' ? buildAluno({ a, s, perfil, mask, h, med }) : buildTecnico({ a, s, prev, history: history || [a], perfil, mask, fotosMov: !!(opts && opts.fotosMov), h, med });
   }
 
   // ---------- Relatório do aluno ----------
-  async function buildAluno({ a, s, perfil, mask, h }) {
+  async function buildAluno({ a, s, perfil, mask, h, med }) {
     const { esc } = h;
     const head = header(a, perfil, h, 'Relatório Postural — resumo para você', 'Avaliação postural por fotos');
     const groups = h.allResults(a);
@@ -89,6 +90,7 @@
       imgs += `<div class="crop"><img src="${renderFull(img, g.key, v, h, { style: 'plain', mask })}" alt="${esc(g.def.label)}"><div><b>${esc(g.def.label)}</b></div></div>`;
     }
     const prios = (a.prioridades || []).filter((p) => p.achado);
+    const medPg = med ? await buildMedidas({ s, perfil, ...med, helpers: h, embutido: true, head }) : '';
     return `<div class="page">${head}
       <h2>Aluno</h2><p><b>${esc(s.nome)}</b></p>
       <h2>O que observamos</h2>
@@ -99,6 +101,7 @@
         : '<p>Nenhum ajuste prioritário por enquanto: os achados ficam registrados para acompanhamento.</p>'}
       <h2>Como ler este relatório</h2><ul class="note">${LIMITES_ALUNO.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
     </div>
+    ${medPg}
     <div class="page">${head}<h2>Suas fotos</h2><div class="crops" style="grid-template-columns:repeat(2,1fr)">${imgs || '<p>Sem fotos.</p>'}</div>
       <p class="note">${esc(consentTxt(s, h))} ${esc(validacaoTxt(a, h))}</p>
       ${credenciais(perfil, esc)}
@@ -106,7 +109,7 @@
   }
 
   // ---------- Registro técnico ----------
-  async function buildTecnico({ a, s, prev, history, perfil, mask, fotosMov, h }) {
+  async function buildTecnico({ a, s, prev, history, perfil, mask, fotosMov, h, med }) {
     const { esc, fmtDate } = h;
     const groups = h.allResults(a);
     const imc = s.altura && s.peso ? (+s.peso / Math.pow(+s.altura / 100, 2)).toFixed(1) : '';
@@ -222,6 +225,8 @@
       }
     }
 
+    // medidas corporais do aluno no mesmo laudo (uma página), antes da conduta
+    if (med) html += await buildMedidas({ s, perfil, ...med, helpers: h, embutido: true, head });
     html += `<div class="page">${head}`;
     if (prev) html += comparison(a, prev, h);
     if (rr.length) {
@@ -342,21 +347,21 @@
   }
 
   // Relatório de medidas corporais do aluno (circunferências em cm e evolução). Descreve; sem diagnóstico nem classificação.
-  async function buildMedidas({ s, perfil, ev, as, rcq, graficos, helpers: h }) {
+  async function buildMedidas({ s, perfil, ev, as, rcq, graficos, helpers: h, embutido, head: headLaudo }) {
     const { esc, fmtDate } = h;
     const sg = (v) => (v == null ? '' : (v > 0 ? '+' : '') + String(v).replace('.', ','));
     const n = (v) => String(v).replace('.', ',');
     const hoje = new Date().toISOString().slice(0, 10);
-    const head = header({ data: hoje, avaliador: perfil.nome }, perfil, h, 'Medidas corporais e evolução', 'Circunferências em cm · ' + s.nome);
+    const head = embutido ? headLaudo : header({ data: hoje, avaliador: perfil.nome }, perfil, h, 'Medidas corporais e evolução', 'Circunferências em cm · ' + s.nome);
     return `<div class="page">${head}
-      <h2>Evolução das medidas</h2>
+      <h2>${embutido ? 'Medidas corporais (circunferências em cm)' : 'Evolução das medidas'}</h2>
       <table><tr><th>Medida</th><th>Atual (cm)</th><th>Data</th><th>Desde a anterior</th><th>Desde a primeira</th><th>Medições</th></tr>
       ${ev.map((r) => `<tr><td>${esc(r.nome)}</td><td><b>${n(r.atual)}</b></td><td>${fmtDate(r.dataAtual)}</td><td>${sg(r.desdeAnterior)}</td><td>${sg(r.desdePrimeiro)}</td><td>${r.n}</td></tr>`).join('')}</table>
       ${as.length ? `<h2>Direito e esquerdo</h2><table><tr><th>Medida</th><th>Data</th><th>Direito</th><th>Esquerdo</th><th>Diferença (D − E)</th></tr>${as.map((r) => `<tr><td>${esc(r.nome)}</td><td>${fmtDate(r.data)}</td><td>${n(r.D)}</td><td>${n(r.E)}</td><td><b>${sg(r.dif)}</b></td></tr>`).join('')}</table>` : ''}
       ${rcq.length ? `<p>Relação cintura/quadril: <b>${n(rcq[rcq.length - 1].value)}</b> (${fmtDate(rcq[rcq.length - 1].data)}). Valor contínuo, sem classificação.</p>` : ''}
       <h2>Gráficos</h2><div class="crops" style="grid-template-columns:repeat(2,1fr)">${graficos.map((g) => `<div class="crop"><img src="${g.src}" alt="${esc(g.titulo)}"></div>`).join('')}</div>
       <p class="note">Circunferências somam massa muscular, gordura e tamanho ósseo: uma variação isolada não diz qual deles mudou. Variações pequenas podem ser erro de medida (fita, ponto, horário). Os valores descrevem as medidas feitas e não são diagnóstico nem avaliação de risco.</p>
-      ${credenciais(perfil, esc)}
+      ${embutido ? '' : credenciais(perfil, esc)}
     </div>`;
   }
 

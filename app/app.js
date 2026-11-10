@@ -273,7 +273,8 @@
         <p class="warn" id="m-av" hidden></p>
         <div class="row" style="margin-top:12px"><button class="primary" id="m-save">${edit ? 'Salvar alterações' : 'Salvar medição'}</button>${edit ? '<button id="m-cancel">Cancelar edição</button>' : ''}</div></div>
       ${s.medidas.length ? `
-      <div class="card"><div class="row" style="justify-content:space-between"><h2>Evolução</h2><div class="row"><button id="m-csv">Exportar CSV</button><button id="m-pdf">Imprimir / salvar em PDF</button></div></div>
+      <div class="card"><div class="row" style="justify-content:space-between"><h2>Evolução</h2><div class="row"><button id="m-csv">Exportar CSV</button><button class="primary" id="m-pdfs">Salvar PDF</button><button id="m-pdf">Imprimir</button></div></div>
+        <p class="muted" id="m-pdf-st">As medidas também podem sair dentro do laudo postural (opção na aba Laudo da avaliação).</p>
         <div class="table-wrap"><table><tr><th>Medida</th><th>Atual (cm)</th><th>Data</th><th>Desde a anterior</th><th>Desde a primeira</th><th>Medições</th></tr>
         ${ev.map((r) => `<tr><td>${esc(r.nome)}</td><td><b>${Angles.fmt(r.atual)}</b></td><td>${fmtDate(r.dataAtual)}</td><td>${sg(r.desdeAnterior)}</td><td>${sg(r.desdePrimeiro)}</td><td>${r.n}</td></tr>`).join('')}</table></div>
         ${as.length ? `<h3>Direito e esquerdo</h3><div class="table-wrap"><table><tr><th>Medida</th><th>Data</th><th>Direito</th><th>Esquerdo</th><th>Diferença (D − E)</th></tr>${as.map((r) => `<tr><td>${esc(r.nome)}</td><td>${fmtDate(r.data)}</td><td>${Angles.fmt(r.D)}</td><td>${Angles.fmt(r.E)}</td><td><b>${sg(r.dif)}</b></td></tr>`).join('')}</table></div>` : ''}
@@ -307,11 +308,12 @@
       showMedidas(id);
     }));
     if ($('#m-csv')) $('#m-csv').onclick = () => saveFile(new Blob([Exporta.csvCorporais(s.medidas)], { type: 'text/csv' }), `medidas-corporais-${today()}.csv`);
+    const medHtml = () => Report.buildMedidas({ s, perfil: state.perfil, ev, as, rcq, graficos: graf.map((gr) => ({ titulo: gr.titulo, src: chartMultiImage(gr) })), helpers: { esc, fmtDate } });
     if ($('#m-pdf')) $('#m-pdf').onclick = async () => {
-      const html = await Report.buildMedidas({ s, perfil: state.perfil, ev, as, rcq, graficos: graf.map((gr) => ({ titulo: gr.titulo, src: chartMultiImage(gr) })), helpers: { esc, fmtDate } });
-      $('#report').innerHTML = `<div class="rp">${html}</div>`;
+      $('#report').innerHTML = `<div class="rp">${await medHtml()}</div>`;
       window.print();
     };
+    if ($('#m-pdfs')) $('#m-pdfs').onclick = async () => pdfFlow($('#m-pdfs'), $('#m-pdf-st'), await medHtml(), 'medidas-corporais-' + nomeArq(s.nome) + '-' + today() + '.pdf');
   }
 
   function newAssessment(studentId) {
@@ -1409,6 +1411,34 @@
     } finally { box.remove(); }
   }
 
+  // Gera o PDF e mostra o botão de compartilhar (o iPad exige um toque novo para abrir o compartilhar).
+  async function pdfFlow(btn, st, html, nome) {
+    btn.disabled = true;
+    try {
+      const blob = await laudoPdf(html, (i, n) => { st.textContent = 'Gerando o PDF: página ' + i + ' de ' + n + '…'; });
+      const file = new File([blob], nome, { type: 'application/pdf' });
+      st.innerHTML = 'PDF pronto (' + Math.round(blob.size / 1024) + ' KB). <button class="primary" type="button">Compartilhar PDF</button>';
+      st.querySelector('button').onclick = async () => {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try { await navigator.share({ files: [file], title: file.name }); } catch (_) { /* cancelado */ }
+          return;
+        }
+        const u = URL.createObjectURL(file), l = document.createElement('a');
+        l.href = u; l.download = file.name; document.body.appendChild(l); l.click(); l.remove();
+        setTimeout(() => URL.revokeObjectURL(u), 60000);
+      };
+    } catch (e) {
+      st.textContent = 'Não consegui gerar o PDF: ' + ((e && e.message) || e) + '. Tente Imprimir.';
+    } finally { btn.disabled = false; }
+  }
+  const nomeArq = (s) => String(s || 'aluno').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '-');
+  // Medidas corporais que entram no laudo: as registradas até a data da avaliação.
+  const medidasAte = (s, data) => (s.medidas || []).filter((r) => !data || String(r.data) <= String(data));
+  function medidasParaLaudo(list) {
+    if (!list.length) return null;
+    return { ev: Medidas.evolucao(list), as: Medidas.assimetria(list), rcq: Medidas.serieRcq(list), graficos: graficosMedidas(list).map((gr) => ({ titulo: gr.titulo, src: chartMultiImage(gr) })) };
+  }
+
   async function renderLaudo() {
     const a = ED.a, pf = state.perfil;
     const savePerfil = async (rerender) => { await DB.put('settings', pf); if (rerender) renderLaudo(); };
@@ -1418,6 +1448,7 @@
         <option value="aluno" ${a.tipoLaudo === 'aluno' ? 'selected' : ''}>Relatório do aluno (resumo em linguagem simples)</option></select></div></div>
       <label style="display:flex;gap:8px;align-items:center;color:var(--ink);margin-top:8px"><input type="checkbox" id="l-mask" style="width:auto" ${a.mascara ? 'checked' : ''}> Ocultar o rosto nas fotos do laudo</label>
       <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="l-fmov" style="width:auto" ${a.fotosMov ? 'checked' : ''}> Incluir no laudo as fotos dos testes de movimento, da corrida e dos ângulos livres (o rosto não é ocultado nelas)</label>
+      ${medidasAte(ED.s, a.data).length ? `<label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="l-med" style="width:auto" ${a.medCorp !== false ? 'checked' : ''}> Incluir no laudo as medidas corporais (${medidasAte(ED.s, a.data).length} medição(ões) até ${fmtDate(a.data)})</label>` : ''}
       <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="l-val" style="width:auto" ${a.validado ? 'checked' : ''}> Conferi e validei as marcações de todas as vistas</label>
       <p class="muted">${a.validado ? 'Validado em ' + new Date(a.validado.em).toLocaleString('pt-BR') + '. Se você mudar um ponto ou a calibração, a validação é desfeita.' : 'Marque a confirmação para gerar o laudo: as marcações são validadas por quem avalia.'}</p>
       <details id="l-cfg" style="margin-top:8px" ${ED.cfgOpen ? 'open' : ''}><summary>Logos e texto do rodapé (vale para todos os laudos)</summary>
@@ -1430,6 +1461,7 @@
       $('#l-tipo').onchange = (e) => { a.tipoLaudo = e.target.value; saveSoon(); renderLaudo(); };
       $('#l-mask').onchange = (e) => { a.mascara = e.target.checked; saveSoon(); renderLaudo(); };
       $('#l-fmov').onchange = (e) => { a.fotosMov = e.target.checked; saveSoon(); renderLaudo(); };
+      if ($('#l-med')) $('#l-med').onchange = (e) => { a.medCorp = e.target.checked; saveSoon(); renderLaudo(); };
       $('#l-val').onchange = (e) => { a.validado = e.target.checked ? { ok: true, em: new Date().toISOString() } : null; saveSoon(); renderLaudo(); };
       $('#l-cfg').ontoggle = (e) => { ED.cfgOpen = e.target.open; };
       $('#l-lct').onchange =(e) => { pf.logoCt = e.target.checked; savePerfil(true); };
@@ -1444,7 +1476,7 @@
     bindControls();
     const prev = a.comparar ? await DB.get('assessments', a.comparar).then((x) => x && normalize(x)) : null;
     const history = (await studentHistory(a.studentId)).map((x) => (x.id === a.id ? a : x));
-    const html = await Report.build({ a, s: ED.s, prev, history, perfil: state.perfil, refs: state.refs, opts: { tipo: a.tipoLaudo, mascara: a.mascara, fotosMov: !!a.fotosMov },
+    const html = await Report.build({ a, s: ED.s, prev, history, perfil: state.perfil, refs: state.refs, opts: { tipo: a.tipoLaudo, mascara: a.mascara, fotosMov: !!a.fotosMov, medidas: a.medCorp !== false ? medidasParaLaudo(medidasAte(ED.s, a.data)) : null },
       helpers: { loadImg, drawView, allResults, flagFor, refFor, CLASSES, CONDICOES, SITUACOES, fmtDate, esc, CHECKLIST, reproRows, calibNotes, beforeAfterCanvas, chartImage, seriesFor, freeImage } });
     main.innerHTML = controls + `<div class="card"><div class="row"><button class="primary" id="pdf">Salvar PDF</button><button id="print">Imprimir</button></div>
       <p class="muted" id="pdf-st">Salvar PDF gera o arquivo aqui mesmo; depois toque em "Compartilhar PDF" e escolha Salvar em Arquivos, WhatsApp ou Imprimir.</p></div>
@@ -1453,28 +1485,7 @@
     $('#report').innerHTML = `<div class="rp">${html}</div>`;
     bindControls();
     $('#print').onclick = () => window.print();
-    $('#pdf').onclick = async () => {
-      const b = $('#pdf'), st = $('#pdf-st');
-      b.disabled = true;
-      try {
-        const blob = await laudoPdf(html, (i, n) => { st.textContent = 'Gerando o PDF: página ' + i + ' de ' + n + '…'; });
-        const base = String((ED.s && ED.s.nome) || 'aluno').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '-');
-        const file = new File([blob], 'laudo-' + base + '-' + (a.data || today()) + '.pdf', { type: 'application/pdf' });
-        st.innerHTML = 'PDF pronto (' + Math.round(blob.size / 1024) + ' KB). <button class="primary" id="pdf-go">Compartilhar PDF</button>';
-        // o compartilhar precisa de um toque novo (o iPad não deixa abrir depois de uma espera longa)
-        $('#pdf-go').onclick = async () => {
-          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            try { await navigator.share({ files: [file], title: file.name }); } catch (_) { /* cancelado */ }
-            return;
-          }
-          const u = URL.createObjectURL(file), l = document.createElement('a');
-          l.href = u; l.download = file.name; document.body.appendChild(l); l.click(); l.remove();
-          setTimeout(() => URL.revokeObjectURL(u), 60000);
-        };
-      } catch (e) {
-        st.textContent = 'Não consegui gerar o PDF: ' + ((e && e.message) || e) + '. Tente Imprimir.';
-      } finally { b.disabled = false; }
-    };
+    $('#pdf').onclick = () => pdfFlow($('#pdf'), $('#pdf-st'), html, 'laudo-' + nomeArq(ED.s && ED.s.nome) + '-' + (a.data || today()) + '.pdf');
   }
 
   // ---------- Testes de movimento ----------
