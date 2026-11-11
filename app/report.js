@@ -158,7 +158,7 @@
     }
 
     // Testes de movimento
-    const mov = typeof Mov !== 'undefined' ? Mov.summarize(a.mov) : { tests: [], metrics: [] };
+    const mov = typeof Mov !== 'undefined' ? Mov.summarize(a.mov, Mov.ctxOf(s, a.data)) : { tests: [], metrics: [] };
     const testNome = (id) => (id === 'livres' ? 'Ângulo livre (foto avulsa)' : typeof Mov !== 'undefined' ? (Mov.TESTS.find((t) => t.id === id) || { nome: id }).nome : id);
     const fotosAng = [];
     Object.entries((a.mov && a.mov.fotos) || {}).forEach(([tid, L]) => (L || []).forEach((f) => {

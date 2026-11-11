@@ -149,6 +149,16 @@ Para substituir o uso do Yogger na avaliação da corrida, seguindo o Manual de 
 - Só entram as medições com data até a data da avaliação. As credenciais não se repetem na página das medidas (já saem no fim do laudo).
 - A tela **Medidas corporais** também ganhou **Salvar PDF** (gerado no app, com Compartilhar PDF), além do Imprimir.
 
+## Testes de movimento alinhados à revisão científica (v24, 11/11/2026)
+
+Base: revisão da skill Avaliação Física Integrada, com fontes conferidas em 11/11/2026 (relatório em `~/.claude/skills/avaliacao-fisica-integrada-pedro-bispo/references/`).
+
+- **Step-down:** variante (lateral / anterior / outra) e **rubrica de Piva/Rabin** (mão da cintura, tronco, pelve, joelho medial ao 2º dedo = 1 ou à borda medial do pé = 2, equilíbrio; total 0–6, igual ao Manual de Movimento 2.0 §25.3). O escore só é calculado na variante lateral **e** quando o avaliador marca que todos os itens foram observáveis nos dois lados; senão o laudo lista só os itens marcados. Escala observacional: sem faixa com nome, sem risco de lesão. Os limiares da diretriz JOSPT (>2 pontos, FPPA >10°) **não** foram usados no laudo (valem só para dor patelofemoral).
+- **Joelho na parede:** pé dominante, protocolo compatível e apoio das mãos. Com isso, sexo e data de nascimento do cadastro, o laudo compara o maior alcance do pé dominante com a faixa **P25–P75 de McBride et al., 2026** (899 adultos) por idade (18+) e sexo, em texto descritivo ("abaixo de P25 / na faixa central / acima de P75"). A diferença entre lados continua só em cm; sem gatilhos de 2 ou 3 cm.
+- **Thomas:** rótulos com a convenção de sinal (coxa: 0 = horizontal, + abaixo do plano da maca, − acima; joelho: 0 = extensão completa). A diferença entre lados do ângulo com sinal sai sem porcentagem. Sem controle da pelve confirmado, o laudo descreve a posição e diz que a estimativa de extensão do quadril é inconclusiva.
+- **PENDENTE DE VALIDAÇÃO:** (1) a tabela de McBride foi transcrita de um documento conferido pelo Pedro; o artigo é pago e **não foi reconferido** (está no código `WBLT_REF`, em `app/movimento.js`); (2) os modelos de ângulo dos testes continuam sem validação, exceto o FPPA (EIAS–patela–tornozelo), que tem correspondência com o Manual de Movimento 2.0 §25.7; (3) rótulos do Thomas mudaram: registros antigos mantêm os números, mas sem a convenção de sinal.
+- Testado: `node --test *.test.js` (53 testes) e a tela de Movimento e o laudo no navegador, em 393 px, 820 px e PC, com dados fictícios. **Não testado em iPad/iPhone de verdade nem publicado.**
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:

@@ -1496,7 +1496,7 @@
     a.mov.livres = a.mov.livres || [];
     a.mov.fotos = a.mov.fotos || {};
     const M = a.mov;
-    const sum = Mov.summarize(M);
+    const sum = Mov.summarize(M, Mov.ctxOf(ED.s, a.data));
     const cnt = (id) => { const t = sum.tests.find((x) => x.id === id); return t ? t.lines.length : 0; };
     const val = (tid, k) => (M.t[tid] || {})[k];
     const opt = (o, v) => o.map((x) => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('');
