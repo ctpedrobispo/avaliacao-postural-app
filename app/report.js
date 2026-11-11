@@ -172,6 +172,7 @@
     if (fotosMov) for (const fa of fotosAng) fa.img = await h.freeImage(fa.f.photo, fa.f.free);
     if (mov.tests.length || fotosAng.length) {
       const pm = typeof Mov !== 'undefined' && prev ? Mov.summarize(prev.mov) : { metrics: [] };
+      const erros = [...new Set(mov.metrics.filter((m) => m.erro && pm.metrics.some((x) => x.key === m.key)).map((m) => m.erro))];
       const cmp = mov.metrics.map((m) => {
         const o = pm.metrics.find((x) => x.key === m.key);
         return o ? `<tr><td>${esc(m.label)}</td><td>D ${fmtN(o.D)} · E ${fmtN(o.E)} ${esc(m.unit)}</td><td>D ${fmtN(m.D)} · E ${fmtN(m.E)} ${esc(m.unit)}</td></tr>` : '';
@@ -183,7 +184,7 @@
           ${fotosAng.map((fa) => fa.vals.map((o) => `<tr><td>${esc(testNome(fa.tid))}</td><td>${esc(fa.f.nome)}</td><td>${esc(o.x.label)}</td><td><b>${Angles.fmt(o.fv.value)}°</b></td><td>${esc(o.fv.text)}</td></tr>`).join('')).join('')}</table>
           <p class="note">Ângulos de foto: medidas de imagem bidimensional, sujeitas a erro de marcação e de perspectiva. Descrevem o quadro fotografado, não o movimento inteiro.</p>` : ''}
         ${fotosMov && fotosAng.length ? `<div class="crops" style="grid-template-columns:repeat(2,1fr)">${fotosAng.map((fa) => `<div class="crop"><img src="${fa.img}" alt=""><div><b>${esc(testNome(fa.tid))}</b> · ${esc(fa.f.nome)}</div></div>`).join('')}</div>` : ''}
-        ${cmp ? `<h3>Comparação com ${fmtDate(prev.data)}</h3><table><tr><th>Medida</th><th>Anterior</th><th>Atual</th></tr>${cmp}</table><p class="note">Sem erro de medida informado para estes testes: a comparação é descritiva.</p>` : ''}
+        ${cmp ? `<h3>Comparação com ${fmtDate(prev.data)}</h3><table><tr><th>Medida</th><th>Anterior</th><th>Atual</th></tr>${cmp}</table><p class="note">${erros.length ? esc(erros.join(' ')) + ' Nos demais testes, sem erro de medida informado: a comparação é descritiva.' : 'Sem erro de medida informado para estes testes: a comparação é descritiva.'}</p>` : ''}
       </div>`;
     }
 

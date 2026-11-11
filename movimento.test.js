@@ -109,3 +109,12 @@ test('Thomas: ângulo com sinal não ganha diferença percentual', () => {
   assert.ok(/diferença 7 °$/.test(q), q);
   assert.ok(/diferença 10 ° \(16,7%\)/.test(j), j);
 });
+
+test('joelho na parede: a métrica leva o erro de referência de Chisholm; outras métricas não', () => {
+  const r = Mov.summarize({ t: { jpar: { dist: { D: ['9', '10'], E: ['7', '8'] } }, thomas: { quadril: { D: '10', E: '5' } } } });
+  assert.match(r.metrics.find((m) => m.key === 'jpar.dist').erro, /Chisholm.*1,2 a 1,3 cm/);
+  assert.equal(r.metrics.find((m) => m.key === 'thomas.quadril').erro, undefined);
+  const prot = (id) => Mov.TESTS.find((x) => x.id === id).protocolo;
+  assert.match(prot('stepdown'), /Mansfield.*0,40 a 0,65/);
+  assert.match(prot('thomas'), /±19°.*Vigotsky/);
+});

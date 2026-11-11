@@ -42,7 +42,7 @@
     },
     {
       id: 'stepdown', nome: 'Step-down unipodal',
-      protocolo: 'Em pé sobre um degrau, apoio em uma perna, descer lentamente o outro pé até tocar o chão com o calcanhar e voltar. Versão padronizada do Manual de Movimento 2.0 (lateral): degrau de 20 cm, mãos na cintura, 5 repetições de familiarização e 5 observadas, câmera frontal, dos dois lados. A altura muda a tarefa: use a mesma no acompanhamento. O escore abaixo é da versão lateral; no step-down anterior, descreva só o que foi visto.',
+      protocolo: 'Em pé sobre um degrau, apoio em uma perna, descer lentamente o outro pé até tocar o chão com o calcanhar e voltar. Versão padronizada do Manual de Movimento 2.0 (lateral): degrau de 20 cm, mãos na cintura, 5 repetições de familiarização e 5 observadas, câmera frontal, dos dois lados. A altura muda a tarefa: use a mesma no acompanhamento. O escore abaixo é da versão lateral; no step-down anterior, descreva só o que foi visto. Concordância entre avaliadores ao ler vídeos (Mansfield et al.): kappa de 0,40 a 0,65; a categoria intermediária é a que menos concorda.',
       campos: [
         { k: 'variante', t: 'sel', label: 'Variante', opts: ['', 'Lateral (rubrica de Piva/Rabin)', 'Anterior (forward)', 'Outra'] },
         { k: 'altura', t: 'num', label: 'Altura do degrau (cm)' },
@@ -79,7 +79,7 @@
     },
     {
       id: 'thomas', nome: 'Thomas modificado',
-      protocolo: 'Deitado na ponta da maca, abraçar um joelho ao peito e deixar a outra perna pendente. Observar posição da coxa e do joelho da perna que fica pendente, dos dois lados.',
+      protocolo: 'Deitado na ponta da maca, abraçar um joelho ao peito e deixar a outra perna pendente. Observar posição da coxa e do joelho da perna que fica pendente, dos dois lados. Sem controle da pelve, só a posição observada é segura: entre o Thomas e a extensão real do quadril, os limites de concordância foram de cerca de ±19° (Vigotsky et al., 29 adultos).',
       campos: [
         { k: 'quadril', t: 'n2', label: 'Coxa em relação à horizontal (0 = horizontal; + abaixo do plano da maca; − acima)', unit: '°', sinal: true },
         { k: 'joelho', t: 'n2', label: 'Flexão do joelho (0 = extensão completa)', unit: '°' },
@@ -137,6 +137,8 @@
     M: [[18, 29, 8.0, 13.2], [30, 39, 8.8, 14.0], [40, 49, 8.0, 14.0], [50, 59, 7.5, 13.8], [60, 69, 7.0, 10.6], [70, 79, 5.8, 9.9], [80, 200, 5.0, 8.0]],
     F: [[18, 29, 9.8, 12.8], [30, 39, 9.8, 13.8], [40, 49, 8.6, 13.0], [50, 59, 7.5, 11.5], [60, 69, 7.0, 9.0], [70, 79, 5.0, 8.0], [80, 200, 5.0, 6.2]],
   };
+  // Chisholm et al.: MDC90 teste–reteste do escore bilateral (lado não afetado − afetado), 37 pacientes com lesão de tornozelo; Tabela 2 (conferida em 11/11/2026).
+  const ERRO_WBLT = 'Joelho na parede: erro teste–reteste de referência para a diferença entre os lados, MDC90 de Chisholm et al. (pacientes com lesão de tornozelo): 1,2 a 1,3 cm; vale só para procedimento comparável e não mede relevância funcional.';
   // Posição do valor (cm) frente à faixa P25–P75 do estrato; extremos publicados ficam na faixa central (convenção de apresentação).
   function wbltRef(sexo, idade, cm) {
     const k = sexo === 'Masculino' ? 'M' : sexo === 'Feminino' ? 'F' : null;
@@ -189,7 +191,7 @@
           if (dD.length || dE.length) {
             const f = (a) => (a.length ? `${a.map(fmtN).join(' / ')} (máx. ${fmtN(Math.max(...a))}, média ${fmtN(a.reduce((x, y) => x + y, 0) / a.length)})` : '—');
             let s = `${c.label}: direito ${f(dD)} · esquerdo ${f(dE)}`;
-            if (dD.length && dE.length) { const D = Math.max(...dD), E = Math.max(...dE); s += ` · diferença entre os máximos ${fmtN(Math.abs(D - E))} ${c.unit}`; metrics.push({ key: t.id + '.' + c.k, label: `${t.nome}: ${c.label} (máx.)`, unit: c.unit, D, E }); }
+            if (dD.length && dE.length) { const D = Math.max(...dD), E = Math.max(...dE); s += ` · diferença entre os máximos ${fmtN(Math.abs(D - E))} ${c.unit}`; metrics.push({ key: t.id + '.' + c.k, label: `${t.nome}: ${c.label} (máx.)`, unit: c.unit, D, E, erro: t.id === 'jpar' ? ERRO_WBLT : undefined }); }
             lines.push(s);
           }
         }
