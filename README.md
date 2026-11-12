@@ -160,6 +160,12 @@ Base: revisão da skill Avaliação Física Integrada, com fontes conferidas em 
 - **v25 (11/11/2026, só local até publicar):** o laudo, na comparação com a avaliação anterior, cita o erro teste–reteste de referência do joelho na parede (MDC90 de Chisholm et al. para a diferença entre lados, 1,2 a 1,3 cm; só para procedimento comparável). Os textos de apoio na tela do step-down (kappas de Mansfield, 0,40 a 0,65) e do Thomas (limites de ±19° de Vigotsky) foram acrescentados. Todos os números foram conferidos nos textos completos em 11/11/2026. Testado só com `node --test` (54 testes); a página do laudo com comparação **não foi aberta no navegador**.
 - Testado (v24): `node --test *.test.js` (53 testes) e a tela de Movimento e o laudo no navegador, em 393 px, 820 px e PC, com dados fictícios. **Não testado em iPad/iPhone de verdade nem publicado.**
 
+## Marcação mais enxuta, ângulos no estilo APECS e formulários estáveis (v26, 12/11/2026)
+
+- **Menos pontos na sequência:** a marcação percorre só os **pontos principais** (anterior 18, posterior 14, laterais 9). Os **complementares** (nariz, incisura jugular, xifoide, C7, fenda glútea e os 4 do tendão) ficam fora da sequência e aparecem em uma seção própria na lista **Pontos**; tocar num deles liga a marcação deles, e ao concluir os principais o app oferece "Marcar também os complementares". A sugestão automática segue a mesma regra. As medidas complementares só aparecem se os pontos delas foram marcados.
+- **Ângulos livres no estilo APECS:** segmentos azuis, leque laranja com raios finos entre os braços do ângulo, nome do ângulo numa caixa na borda esquerda com linha até o vértice e o valor em graus ao lado do vértice (na tela e na imagem do laudo).
+- **Formulários no iPad/iPhone:** o cabeçalho deixa de grudar no topo em telas de toque e a página ganha folga embaixo, para o teclado não fazer a página subir e descer ao digitar. Esse ajuste **não foi testado em aparelho real** (PENDENTE DE CONFIRMAÇÃO no iPad).
+
 ## Regras seguidas
 
 As regras vêm do `Manual_Avaliacao_Postural_Fotogrametria_APECS_Pedro_Bispo_v3_0_REVISADO.md` e do complemento técnico de 20/10/2026:

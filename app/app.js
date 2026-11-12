@@ -574,7 +574,7 @@
   function firstMissing(key) {
     const v = ED.a.views[key];
     const P = pset(v);
-    const p = Angles.VIEWS[key].points.find(([id]) => !P[id]);
+    const p = Angles.VIEWS[key].points.find((q) => !P[q[0]] && (!isOptional(q) || ED.a.complementares));
     return p ? p[0] : null;
   }
 
@@ -791,7 +791,9 @@
     if (!v.photo) return;
     ED.mark = set;
     const P = () => pset(v);
-    const pts = def.points;
+    // Sequência principal: só os pontos do manual. Os complementares (nariz, incisura, xifoide, C7, fenda, tendão) entram quando o Pedro pede.
+    const visible = () => def.points.filter((q) => !isOptional(q) || ED.a.complementares || P()[q[0]]);
+    let pts = visible();
     const idx = (id) => pts.findIndex((p) => p[0] === id);
     let cur = firstMissing(key) || pts[0][0];
     const hist = [], skipped = new Set();
@@ -843,15 +845,24 @@
             if (!nx && i + 1 < n) nx = pts[i + 1][0];
             if (nx) { cur = nx; ui(); return; }
             ui();
-            const m = S.modal(`<h2>Pontos marcados</h2><p>${pts.filter(([id]) => P()[id]).length} de ${n} pontos marcados${pts.some((pp) => !P()[pp[0]]) ? ' (os que faltam são opcionais)' : ''}.</p><div class="row"><button class="primary" data-m="ok">Concluir</button><button data-m="rev">Revisar</button></div>`);
+            const m = S.modal(`<h2>Pontos marcados</h2><p>${pts.filter(([id]) => P()[id]).length} de ${n} pontos marcados${pts.some((pp) => !P()[pp[0]]) ? ' (os que faltam são opcionais)' : ''}.</p><div class="row"><button class="primary" data-m="ok">Concluir</button><button data-m="rev">Revisar</button>${!ED.a.complementares && def.points.some((q) => isOptional(q) && !P()[q[0]]) ? '<button data-m="comp">Marcar também os complementares</button>' : ''}</div>`);
             m.querySelector('[data-m="ok"]').onclick = () => S.close();
             m.querySelector('[data-m="rev"]').onclick = () => S.closeModal();
+            if (m.querySelector('[data-m="comp"]')) m.querySelector('[data-m="comp"]').onclick = () => { ED.a.complementares = true; saveSoon(); pts = visible(); cur = firstMissing(key) || pts[0][0]; S.closeModal(); ui(); };
           } else if (act === 'list') {
+            const row = ([id, label, hint]) => `<button class="dr-row ${id === cur ? 'cur' : ''} ${P()[id] ? 'done' : ''}" data-pt="${id}"><span class="dot"></span><span><b>${esc(label)}</b>${hint ? `<small>${esc(hint)}</small>` : ''}</span></button>`;
+            const principais = def.points.filter((q) => !isOptional(q)), compl = def.points.filter(isOptional);
             const d = S.drawer(`<div class="row" style="justify-content:space-between"><h3 style="margin:0">Pontos</h3><button data-dr="x">Fechar</button></div>
               <p class="muted">Toque num ponto para ir até ele.</p>
-              ${pts.map(([id, label, hint]) => `<button class="dr-row ${id === cur ? 'cur' : ''} ${P()[id] ? 'done' : ''}" data-pt="${id}"><span class="dot"></span><span><b>${esc(label)}</b>${hint ? `<small>${esc(hint)}</small>` : ''}</span></button>`).join('')}`);
+              <h4 class="dr-h">Principais (${principais.filter(([id]) => P()[id]).length} de ${principais.length})</h4>
+              ${principais.map(row).join('')}
+              ${compl.length ? `<h4 class="dr-h">Complementares (opcionais · ${compl.filter(([id]) => P()[id]).length} de ${compl.length})</h4><p class="muted">Só servem para as medidas complementares. Tocar num deles liga a marcação deles.</p>${compl.map(row).join('')}` : ''}`);
             d.querySelector('[data-dr="x"]').onclick = () => S.drawer(null);
-            d.querySelectorAll('[data-pt]').forEach((b) => (b.onclick = () => { cur = b.dataset.pt; skipped.delete(cur); S.drawer(null); ui(); }));
+            d.querySelectorAll('[data-pt]').forEach((b) => (b.onclick = () => {
+              const q = def.points.find((x) => x[0] === b.dataset.pt);
+              if (q && isOptional(q) && !ED.a.complementares) { ED.a.complementares = true; saveSoon(); pts = visible(); }
+              cur = b.dataset.pt; skipped.delete(cur); S.drawer(null); ui();
+            }));
           }
         },
         onClose: () => {
@@ -2182,10 +2193,39 @@
   // Desenha os ângulos livres de uma lista. o: { sel:{ai,pi}, labels, numbers }
   function drawFreeAngles(c, list, u, o) {
     o = o || {};
+    const BLUE = '#2d9cdb', ORANGE = '#ffa800';
+    // leque laranja com raios finos (como no APECS): do braço a até o braço b, ao redor do vértice
+    const fan = (vx, vy, a0, a1, r, sel) => {
+      let d = a1 - a0;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      c.save();
+      c.beginPath(); c.moveTo(vx, vy); c.arc(vx, vy, r, a0, a0 + d, d < 0); c.closePath();
+      c.fillStyle = 'rgba(255,168,0,0.38)'; c.fill();
+      c.strokeStyle = 'rgba(255,140,0,0.55)'; c.lineWidth = 1 * u;
+      const n = Math.max(6, Math.round(Math.abs(d) * 180 / Math.PI / 2.5));
+      c.beginPath();
+      for (let k = 1; k < n; k++) { const t = a0 + (d * k) / n; c.moveTo(vx, vy); c.lineTo(vx + Math.cos(t) * r, vy + Math.sin(t) * r); }
+      c.stroke();
+      c.beginPath(); c.arc(vx, vy, r, a0, a0 + d, d < 0);
+      c.strokeStyle = ORANGE; c.lineWidth = (sel ? 4 : 3) * u; c.stroke();
+      c.restore();
+    };
     list.forEach((f, ai) => {
       const ps = f.pts || [];
       const isSel = o.sel && o.sel.ai === ai;
-      c.strokeStyle = '#9b59ff';
+      const tipo = f.tipo || '3pt';
+      const fv = Angles.freeValue(f);
+      // leque primeiro (fica atrás dos segmentos)
+      if (fv && tipo === '3pt' && ps[0] && ps[1] && ps[2]) {
+        const r = Math.min(Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y), Math.hypot(ps[2].x - ps[1].x, ps[2].y - ps[1].y)) * 0.8;
+        fan(ps[1].x, ps[1].y, Math.atan2(ps[0].y - ps[1].y, ps[0].x - ps[1].x), Math.atan2(ps[2].y - ps[1].y, ps[2].x - ps[1].x), r, isSel);
+      } else if (fv && (tipo === 'h' || tipo === 'v') && ps[0] && ps[1]) {
+        const len = Math.hypot(ps[1].x - ps[0].x, ps[1].y - ps[0].y);
+        const ref = tipo === 'h' ? (ps[1].x >= ps[0].x ? 0 : Math.PI) : (ps[1].y >= ps[0].y ? Math.PI / 2 : -Math.PI / 2);
+        fan(ps[0].x, ps[0].y, ref, Math.atan2(ps[1].y - ps[0].y, ps[1].x - ps[0].x), len * 0.7, isSel);
+      }
+      c.strokeStyle = BLUE;
       c.lineWidth = (isSel ? 4.5 : 3.5) * u;
       c.lineCap = 'round';
       c.beginPath();
@@ -2193,22 +2233,34 @@
       ps.forEach((p) => { if (!p) { on = false; return; } if (!on) { c.moveTo(p.x, p.y); on = true; } else c.lineTo(p.x, p.y); });
       c.stroke();
       c.lineCap = 'butt';
-      if ((f.tipo === 'h' || f.tipo === 'v') && ps[0] && ps[1]) {
+      if ((tipo === 'h' || tipo === 'v') && ps[0] && ps[1]) {
         const len = Math.hypot(ps[1].x - ps[0].x, ps[1].y - ps[0].y);
-        c.strokeStyle = 'rgba(155,89,255,0.7)'; c.lineWidth = 1.8 * u; c.setLineDash([6 * u, 5 * u]);
+        c.strokeStyle = 'rgba(45,156,219,0.8)'; c.lineWidth = 1.8 * u; c.setLineDash([6 * u, 5 * u]);
         c.beginPath(); c.moveTo(ps[0].x, ps[0].y);
-        if (f.tipo === 'h') c.lineTo(ps[0].x + (ps[1].x >= ps[0].x ? 1 : -1) * len, ps[0].y);
+        if (tipo === 'h') c.lineTo(ps[0].x + (ps[1].x >= ps[0].x ? 1 : -1) * len, ps[0].y);
         else c.lineTo(ps[0].x, ps[0].y + (ps[1].y >= ps[0].y ? 1 : -1) * len);
         c.stroke(); c.setLineDash([]);
       }
       ps.forEach((p, pi) => {
         if (!p) return;
-        dot(c, p, u, '#9b59ff', !!(o.sel && o.sel.ai === ai && o.sel.pi === pi));
-        if (o.numbers) { c.font = `700 ${12 * u}px -apple-system, sans-serif`; c.fillStyle = '#9b59ff'; c.fillText(String(pi + 1), p.x + 9 * u, p.y - 9 * u); }
+        dot(c, p, u, BLUE, !!(o.sel && o.sel.ai === ai && o.sel.pi === pi));
+        if (o.numbers) { c.font = `700 ${12 * u}px -apple-system, sans-serif`; c.fillStyle = BLUE; c.fillText(String(pi + 1), p.x + 9 * u, p.y - 9 * u); }
       });
-      if (o.labels !== false) {
-        const fv = Angles.freeValue(f);
-        if (fv) { const vtx = (f.tipo || '3pt') === '3pt' ? ps[1] : ps[0]; tagLabel(c, `${f.label}: ${Angles.fmt(fv.value)}°`, vtx.x + 10 * u, vtx.y + 22 * u, u); }
+      if (o.labels !== false && fv) {
+        const vtx = tipo === '3pt' ? ps[1] : ps[0];
+        const vl = `${Angles.fmt(fv.value)}°`;
+        c.font = `600 ${14 * u}px -apple-system, sans-serif`;
+        if (o.W) {
+          // como no APECS: nome do ângulo na borda esquerda, linha até o vértice e o valor ao lado do vértice
+          const nome = f.label || `Ângulo ${ai}`;
+          const wN = c.measureText(nome).width + 10 * u, x0 = 6 * u;
+          c.strokeStyle = BLUE; c.lineWidth = 2 * u;
+          c.beginPath(); c.moveTo(x0 + wN, vtx.y + 6 * u - 6 * u); c.lineTo(vtx.x, vtx.y); c.stroke();
+          tagLabel(c, nome, x0, vtx.y + 6 * u, u);
+          tagLabel(c, vl, vtx.x + 10 * u, vtx.y + 6 * u, u);
+        } else {
+          tagLabel(c, `${f.label}: ${vl}`, vtx.x + 10 * u, vtx.y + 22 * u, u);
+        }
       }
     });
   }
@@ -2235,7 +2287,7 @@
         leftHtml: fsBtn('grid', ICON.grid, 'Grade') + fsBtn('contrast', ICON.contrast, 'Contraste'),
         rightHtml: fsBtn('move', ICON.move, 'Mover') + fsBtn('list', ICON.list, 'Ângulos') + fsBtn('fit', ICON.fit, 'Ajustar'),
         bottomHtml: fsBtn('undo', ICON.back, 'Desfazer') + fsBtn('redo', ICON.redo, 'Refazer ponto') + fsBtn('nudge', ICON.nudge, 'Ajuste fino') + fsBtn('model', ICON.list, 'Modelo'),
-        drawOverlay: (c, tf, loupe) => { c.save(); c.translate(tf.x, tf.y); c.scale(tf.s, tf.s); drawFreeAngles(c, cfg.free, 1 / tf.s, { sel: W.sel, labels: !loupe, numbers: !loupe }); c.restore(); },
+        drawOverlay: (c, tf, loupe) => { c.save(); c.translate(tf.x, tf.y); c.scale(tf.s, tf.s); drawFreeAngles(c, cfg.free, 1 / tf.s, { W: img.naturalWidth, sel: W.sel, labels: !loupe, numbers: !loupe }); c.restore(); },
         pos: (t) => cfg.free[t.ai] && cfg.free[t.ai].pts[t.pi],
         hit: (q, r) => {
           let best = null, bd = r;
@@ -2455,7 +2507,7 @@
     c.width = img.naturalWidth; c.height = img.naturalHeight;
     const g = c.getContext('2d');
     g.drawImage(img, 0, 0);
-    drawFreeAngles(g, free.map(normFree), img.naturalWidth / 650, { labels: true });
+    drawFreeAngles(g, free.map(normFree), img.naturalWidth / 650, { labels: true, W: img.naturalWidth });
     return c.toDataURL('image/jpeg', 0.85);
   }
   // Foto reduzida (lado maior 1800 px) como dataURL. type 'image/png' mantém o fundo transparente (logos).

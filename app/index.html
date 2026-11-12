@@ -302,6 +302,15 @@ details.card > summary { cursor: pointer; font-size: 17px; }
 
 #savefail { position: fixed; left: 10px; right: 10px; top: max(10px, env(safe-area-inset-top)); z-index: 300; background: #fff3cd; color: #5c3b00; border: 2px solid #f0a23a; border-radius: 12px; padding: 12px 14px; font-size: 15px; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
 #savefail button { margin-left: 8px; }
+
+.dr-h { margin: 14px 0 4px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+/* Formulários estáveis em tela de toque: o cabeçalho deixa de grudar no topo (o teclado fazia a página pular) */
+@media (hover: none) and (pointer: coarse) {
+  header.top { position: static; }
+  html, body { overscroll-behavior-y: none; }
+  main { padding-bottom: calc(16px + 45vh); }
+  input, select, textarea { scroll-margin-top: 90px; scroll-margin-bottom: 45vh; }
+}
 </style>
 </head>
 <body>
